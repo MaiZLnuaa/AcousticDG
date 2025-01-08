@@ -1,0 +1,107 @@
+{
+	"mesh": {
+		"File": "cases/2d_square/square2.msh",
+		"BC": {
+			"number": 2,
+			"boundary1": {
+				"name": "Abs",
+				"type": "Absorbing"
+			},
+			"boundary2": {
+				"name": "Ref",
+				"type": "Reflecting"
+			}
+		}
+	},
+	"solver": {
+		"time": {
+			"start": 0.0,
+			"end": 0.05,
+			"step": 5e-05,
+			"rate": 0.001
+		},
+		"elementType": "Lagrange",
+		"timeIntMethod": "Runge-Kutta",
+		"numThreads": 12
+	},
+	"initialization": {
+		"meanFlow": {
+			"vx": 30.0,
+			"vy": 0.0,
+			"vz": 0.0,
+			"rho": 1.225,
+			"c": 100.0
+		},
+		"number": 2,
+		"initialCondition1": {
+			"type": "gaussian",
+			"x": 0.2,
+			"y": 0.0,
+			"z": 0.0,
+			"size": 1.0,
+			"amplitude": 1.0
+		},
+		"initialCondition2": {
+			"type": "gaussian",
+			"x": -0.2,
+			"y": 0.0,
+			"z": 0.0,
+			"size": 1.0,
+			"amplitude": 1.0
+		}
+	},
+	"observers": {
+		"number": 2,
+		"observer1": {
+			"x": 2.11792,
+			"y": 0.00340081,
+			"z": 0.0,
+			"size": 0.1
+		},
+		"observer2": {
+			"x": -2.11792,
+			"y": 0.00340081,
+			"z": 0.0,
+			"size": 0.1
+		}
+	},
+	"sources": {
+		"number": 3,
+		"source1": {
+			"type": "formula",
+			"fct": "0.1 * sin(2 * pi * 50 * t)",
+			"x": 0.0,
+			"y": 0.0,
+			"z": 0.0,
+			"size": 0.1,
+			"amplitude": 0.0,
+			"frequency": 0.0,
+			"phase": 0.0,
+			"duration": 0.05
+		},
+		"source2": {
+			"type": "file",
+			"fct": "data/data2.wav",
+			"x": 0.0,
+			"y": 0.0,
+			"z": 0.0,
+			"size": 0.1,
+			"amplitude": 0.0,
+			"frequency": 0.0,
+			"phase": 0.0,
+			"duration": 0.05
+		},
+		"source3": {
+			"type": "monopole",
+			"fct": "",
+			"x": 0.0,
+			"y": 0.0,
+			"z": 0.0,
+			"size": 0.1,
+			"amplitude": 0.1,
+			"frequency": 50.0,
+			"phase": 0.0,
+			"duration": 0.05
+		}
+	}
+}

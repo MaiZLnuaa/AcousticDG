@@ -46,7 +46,7 @@ Mesh::Mesh(Config config) : config(config)
 
     gmsh::model::mesh::getElementsByType(m_elType[0], m_elTags, m_elNodeTags);
     m_elNum = (int)m_elTags.size();
-    m_elIntType = "Gauss" + std::to_string(2 * m_elOrder);
+    m_elIntType = "Gauss" + std::to_string(4 * m_elOrder);
 
     // std::vector<double> m_elWeight;
     gmsh::model::mesh::getIntegrationPoints(m_elType[0], m_elIntType, m_elParamCoord, m_elWeight);

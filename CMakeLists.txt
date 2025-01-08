@@ -25,9 +25,9 @@ ENDIF()
 
 # find gmsh-sdk
 # gmsh.h
-SET(GMSH_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/3rdParty/gmsh/include)
-SET(GMSH_LIBRARIES ${PROJECT_SOURCE_DIR}/3rdParty/gmsh/lib/libgmsh.so)
-SET(GMSH_EXECUTABLE ${PROJECT_SOURCE_DIR}/3rdParty/gmsh/bin/gmsh)
+SET(GMSH_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/3rdParty/gmsh/gmsh-4.13.1-Linux64-sdk/include)
+SET(GMSH_LIBRARIES ${PROJECT_SOURCE_DIR}/3rdParty/gmsh/gmsh-4.13.1-Linux64-sdk/lib/libgmsh.so)
+SET(GMSH_EXECUTABLE ${PROJECT_SOURCE_DIR}/3rdParty/gmsh/gmsh-4.13.1-Linux64-sdk/bin/gmsh)
 
 FIND_PATH(GMSH_INCLUDE_DIRS NAMES "gmsh.h")
 MESSAGE(STATUS "GMSH_INCLUDE_DIRS=" ${GMSH_INCLUDE_DIRS})

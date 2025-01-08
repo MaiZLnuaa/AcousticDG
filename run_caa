@@ -11,7 +11,10 @@ echo "Start computations"
 
 #build/bin/dgalerkin doc/config/Square.json
 
-build/bin/dgalerkin cases/2d_hilltop/2d_hilltop.json
+# build/bin/dgalerkin cases/2d_hilltop/2d_hilltop.json
 #build/bin/dgalerkin cases/2d_hilltop/2d_hilltop.conf
 #build/bin/dgalerkin cases/2d_hilltop/rectangle.json
 #build/bin/dgalerkin cases/2d_hilltop/bump.json
+
+build/bin/dgalerkin doc/config/Gaussian2d.conf
+# build/bin/dgalerkin doc/config/Gaussian3d.conf

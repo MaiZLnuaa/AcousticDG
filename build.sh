@@ -7,110 +7,111 @@ echo
 
 echo "[0] Create some project directories if don't exist.";
 
-mkdir 3rdParty
+mkdir -p 3rdParty
+mkdir -p results
 
-mkdir results
+echo "[1] Get dependencies and external libraries.";
 
-echo "[1] Get depedencies and external libraries.";
-
-
-dpkg -s cmake > /dev/null 2>&1;
+# Check if cmake is installed
+which cmake > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-	echo "mCmake found.";
+    echo "CMake found.";
 else
-	echo "Cmake not found, installing...";
-	sudo apt-get -y install cmake;
-	echo "Cmake installed.";
+    echo "CMake not found, installing...";
+    sudo dnf install -y cmake
+    echo "CMake installed.";
 fi
 
-dpkg -s g++ > /dev/null 2>&1;
+# Check if g++ is installed
+which g++ > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-	echo "G++ found.";
+    echo "G++ found.";
 else
-	echo "G++ not found, installing...";
-	sudo apt-get -y install g++;
-	export CC=gcc;
-	export CXX=g++;
-	echo "G++ installed.";
+    echo "G++ not found, installing...";
+    sudo dnf install -y gcc-c++
+    export CC=gcc
+    export CXX=g++
+    echo "G++ installed.";
 fi
 
-dpkg -s gfortran > /dev/null 2>&1;
+# Check if gfortran is installed
+which gfortran > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-	echo "Gfortran found.";
+    echo "Gfortran found.";
 else
-	echo "Gfortran not found, installing...";
-	sudo apt-get -y install gfortran;
-	echo "Gfortran installed.";
+    echo "Gfortran not found, installing...";
+    sudo dnf install -y gfortran
+    echo "Gfortran installed.";
 fi
 
-dpkg -s libblas-dev liblapack-dev > /dev/null 2>&1;
+# Check if Lapack/Blas is installed
+dnf list installed blas-devel lapack-devel > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-	echo "Lapack/Blas found.";
+    echo "Lapack/Blas found.";
 else
-	echo "Lapack/Blas not found, installing...";
-	sudo apt-get -y install libblas-dev liblapack-dev;
-	echo "Lapack/Blas installed.";
+    echo "Lapack/Blas not found, installing...";
+    sudo dnf install blas-devel lapack-devel
+    echo "Lapack/Blas installed.";
 fi
 
-# dpkg -s libtbb2 > /dev/null 2>&1;
-# if [ $? -eq 0 ]; then
-# 	echo "TBB found.";
-# else
-# 	echo "TBB not found, installing...";
-# 	sudo apt-get -y install libtbb2;
-# 	echo "TBB installed.";
-# fi
-
-dpkg -s libglu1-mesa > /dev/null 2>&1;
+# Check if libGLU is installed
+dnf list installed mesa-libGLU > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-	echo "libGLU found.";
+    echo "libGLU found.";
 else
-	echo "libGLU not found, installing...";
-	sudo apt-get -y install libglu1-mesa;
-	echo "libGLU installed.";
+    echo "libGLU not found, installing...";
+    sudo dnf install -y mesa-libGLU
+    echo "libGLU installed.";
 fi
 
-dpkg -s libxft2 > /dev/null 2>&1;
+# Check if libXft is installed
+dnf list installed libXft > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-	echo "libxft found.";
+    echo "libXft found.";
 else
-	echo "libxft not found, installing...";
-	sudo apt-get -y install libxft2;
-	echo "libxft2 installed.";
+    echo "libXft not found, installing...";
+    sudo dnf install -y libXft
+    echo "libXft installed.";
 fi
 
-dpkg -s libvtk9-dev > /dev/null 2>&1;
+# Check if libvtk9-dev is installed
+dnf list installed vtk-devel > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-	echo "libvtk9-dev found.";
+    echo "libvtk9-dev found.";
 else
-	echo "libvtk9-dev not found, installing...";
-	sudo apt-get -y install libvtk9-dev;
-	echo "libvtk9-dev installed.";
+    echo "libvtk9-dev not found, installing...";
+    sudo dnf install -y vtk-devel
+    echo "libvtk9-dev installed.";
 fi
 
-dpkg -s libfftw3-dev > /dev/null 2>&1;
+# Check if FFTW3 is installed
+dnf list installed fftw-devel > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-	echo "libfftw3-dev found.";
+    echo "libfftw3-dev found.";
 else
-	echo "libfftw3-dev not found, installing...";
-	sudo apt-get -y install libfftw3-dev;
-	echo "libfftw3-dev installed.";
+    echo "libfftw3-dev not found, installing...";
+    sudo dnf install -y fftw3-devel
+    echo "libfftw3-dev installed.";
 fi
 
-dpkg -s nlohmann-json3-dev > /dev/null 2>&1;
+# Check if nlohmann-json is installed
+dnf list installed json-devel > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-	echo "nlohmann-json3-dev found.";
+    echo "nlohmann-json3-dev found.";
 else
-	echo "nlohmann-json3-dev not found, installing...";
-	sudo apt-get -y install nlohmann-json3-dev;
-	echo "nlohmann-json3-dev installed.";
+    echo "nlohmann-json3-dev not found, installing...";
+    sudo dnf install -y nlohmann-json-devel
+    echo "nlohmann-json3-dev installed.";
 fi
 
-gmsh_version=4.13.0
+# No need to install GMSH or Eigen if already installed
+echo "[2] GMSH and Eigen already installed, skipping installation.";
+
+gmsh_version=4.13.1
 # LINUX
 if [ ! -d "3rdParty/gmsh" ]; then
 	echo "Gmsh not found, installing...";
-	wget http://gmsh.info/bin/Linux/gmsh-${gmsh_version}-Linux64-sdk.tgz
+	# wget http://gmsh.info/bin/Linux/gmsh-${gmsh_version}-Linux64-sdk.tgz
 	tar -xf gmsh-${gmsh_version}-Linux64-sdk.tgz
 	rm -rf gmsh-${gmsh_version}-Linux64-sdk.tgz
 	mv gmsh-${gmsh_version}-Linux64-sdk 3rdParty/gmsh
@@ -140,40 +141,16 @@ export PYTHONPATH=${PWD}/lib:${PYTHONPATH}
 export DYLD_LIBRARY_PATH=${PWD}/lib:${DYLD_LIBRARY_PATH}
 cd ../../
 
+echo "[3] Build sources.";
 
-# if [ ! -d "3rdParty/eigen" ]; then
-# 	echo "Eigen not found, installing...";
-#   	wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz
-#  	tar -xf eigen-3.4.0.tar.gz
-#  	rm -rf eigen-3.4.0.tar.gz
-#  	mv eigen-3.4.0 3rdParty/eigen
-# 	echo "Eigen installed."
-# else
-# 	echo "Eigen found."
-# fi
-# cd 3rdParty/eigen/
-# export INCLUDE=${PWD}:${INCLUDE}
-# cd ../../
-
-dpkg -s libeigen3-dev > /dev/null 2>&1;
-if [ $? -eq 0 ]; then
-	echo "Eigen found.";
-else
-	echo "libeigen3-dev not found, installing...";
-	sudo apt-get -y install libeigen3-dev;
-	echo "Eigen installed.";
-fi
-
-echo "[2] Build sources.";
-
-rm -rf build/  
+rm -rf build/
 mkdir build
 
 cd build/
-cmake ../ -DCMAKE_BUILD_TYPE=Release  -G "Unix Makefiles" 
+cmake ../ -DCMAKE_BUILD_TYPE=Release  -G "Unix Makefiles"
 make -j
 if [ $? -eq 0 ]; then
-    	echo "[end] Everything went successfully.";
+    echo "[end] Everything went successfully.";
 else
-	echo "[end] Error!";
+    echo "[end] Error!";
 fi
