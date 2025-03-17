@@ -42,5 +42,4 @@ Plane Surface(24) = {18};
 Surface Loop(25) = {19, 20, 21, 22, 23, 24};
 Volume(26) = {25};
 
-// 生成四面体网格
-Mesh 3;
+Mesh.ElementOrder = 4;  // 生成四阶网格 

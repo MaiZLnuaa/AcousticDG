@@ -4,3 +4,5 @@
 build/
 
 results/
+
+post_processing/*.vtu

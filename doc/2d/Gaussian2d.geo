@@ -1,4 +1,4 @@
-lc = 1.0;
+lc = 5.0;
 Point(1) = {-50, -50, 0, lc};
 Point(2) = {50, -50, 0, lc};
 Point(3) = {50, 50, 0, lc};
@@ -20,5 +20,7 @@ Physical Curve("Absorbing") = {3, 4};
 
 // 计算域
 Physical Surface("Domain") = {1};
+
+//Mesh.ElementOrder = 2;  // 生成二阶网格
 
 Mesh 2;
