@@ -1,4 +1,4 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.1)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.5)
 PROJECT(DGalerkin VERSION 1.3.6)
 
 # put all generated files in a single folder (required in windows for exe linked to dlls)
