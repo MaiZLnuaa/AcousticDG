@@ -79,6 +79,31 @@ int main(int argc, char **argv)
     else Fatal_Error("Time integration method error")    
 
     mesh.writePVD("results.pvd");
+
+    int i_m_elDim;
+    std::vector<int> i_m_elType;
+
+    i_m_elDim = gmsh::model::getDimension();
+    gmsh::model::mesh::getElementTypes(i_m_elType, i_m_elDim);
+
+    int _numPrimaryNodes = 0;
+    std::string m_elName;
+    int m_elDim, m_elOrder, m_elNumNodes;
+    std::vector<double> m_elParamCoord;
+
+    gmsh::model::mesh::getElementProperties(i_m_elType[0], m_elName, m_elDim,
+                                            m_elOrder, m_elNumNodes, m_elParamCoord, _numPrimaryNodes);
+
+    gmsh::logger::write("==================================================");
+   
+    gmsh::logger::write("Element dimension : " + std::to_string(m_elDim));
+    gmsh::logger::write("Element Type : " + m_elName);
+    gmsh::logger::write("Element Order : " + std::to_string(m_elOrder));
+    gmsh::logger::write("Element Nbr Nodes : " + std::to_string(m_elNumNodes));
+                                     
+    screen_display::write_string("Calculation finished", GREEN);
+    
+
     gmsh::finalize();
 
     return EXIT_SUCCESS;

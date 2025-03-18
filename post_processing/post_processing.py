@@ -13,7 +13,7 @@ import vtk
 import numpy as np
 from scipy.interpolate import griddata
 
-mesh_file = "result0.vtu"
+mesh_file = "result1200_2d_23246_p2.vtu"
 
 # 读取原始 .vtu 文件
 mesh = meshio.read(mesh_file)
@@ -57,7 +57,7 @@ values = np.array([cell_data.GetValue(i) for i in range(cell_data.GetNumberOfTup
 if is_2D:
     xmin, ymin = points[:, 0].min(), points[:, 1].min()
     xmax, ymax = points[:, 0].max(), points[:, 1].max()
-    grid_x, grid_y = np.mgrid[xmin:xmax:300j, ymin:ymax:300j]
+    grid_x, grid_y = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
     
     # 二维插值
     grid_z = griddata(points, values, (grid_x, grid_y), method="cubic")

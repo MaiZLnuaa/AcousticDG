@@ -6,3 +6,5 @@ build/
 results/
 
 post_processing/*.vtu
+
+*.csv
