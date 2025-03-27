@@ -37,19 +37,24 @@ Mesh::Mesh(Config config) : config(config)
     };
 
     auto start = std::chrono::system_clock::now();
-    m_elDim = gmsh::model::getDimension();
-    gmsh::model::mesh::getElementTypes(m_elType, m_elDim);
+    m_elDim = gmsh::model::getDimension();                  //获取维度
+    gmsh::model::mesh::getElementTypes(m_elType, m_elDim);  //获得维度为m_elDim的单元类型(二维是三角形Triangle,三维是四面体Quadrangle)编号m_elType[0],注意这个编号和阶数是相关的.
     int _numPrimaryNodes = 0;
 
     gmsh::model::mesh::getElementProperties(m_elType[0], m_elName, m_elDim,
-                                            m_elOrder, m_elNumNodes, m_elParamCoord, _numPrimaryNodes);
+                                            m_elOrder, m_elNumNodes, m_elParamCoord, _numPrimaryNodes);  //获得单元信息,以二维四阶三角形为例m_elName = "Triangle 15", m_elDim = 2, m_elOrder = 4, m_elNumNodes = 15
+                                                                                                         //m_elParamCoord [0.  , 0.  , 1.  , 0.  , 0.  , 1.  , 0.25, 0.  , 0.5 , 0.  , 0.75,
+                                                                                                                         //0.  , 0.75, 0.25, 0.5 , 0.5 , 0.25, 0.75, 0.  , 0.75, 0.  , 0.5 ,
+                                                                                                                         //0.  , 0.25, 0.25, 0.25, 0.5 , 0.25, 0.25, 0.5 ]   这里后面变了    
 
-    gmsh::model::mesh::getElementsByType(m_elType[0], m_elTags, m_elNodeTags);
-    m_elNum = (int)m_elTags.size();
-    m_elIntType = "Gauss" + std::to_string(2 * m_elOrder);
+    gmsh::model::mesh::getElementsByType(m_elType[0], m_elTags, m_elNodeTags);  //获得单元编号m_elTags和单元节点编号m_elNodeTags,注意每个单元的节点数量根据阶数不同而不同
+    m_elNum = (int)m_elTags.size();  //获得单元总数
+    m_elIntType = "Gauss" + std::to_string(2 * m_elOrder);  //设置单元积分名称,如Gauss4(4阶高斯积分),这里设置成2倍的单元阶数
 
     // std::vector<double> m_elWeight;
-    gmsh::model::mesh::getIntegrationPoints(m_elType[0], m_elIntType, m_elParamCoord, m_elWeight);
+    gmsh::model::mesh::getIntegrationPoints(m_elType[0], m_elIntType, m_elParamCoord, m_elWeight);  //获得单元积分点坐标m_elParamCoord和权重m_elWeight,以三角形单元,四阶高斯积分为例,单元有6个积分点m_elParamCoord = [0.44594849 0.44594849 0.         0.44594849 0.10810302 0.
+                                                                                                                                                                                                         //0.10810302 0.44594849 0.         0.09157621 0.09157621 0.
+                                                                                                                                                                                                         //0.09157621 0.81684757 0.         0.81684757 0.09157621 0.        ]
     // pp("integration points to integrate order " + std::to_string(m_elOrder*2) + " polynomials", m_elParamCoord, 3);
 
     screen_display::write_string("Elements - Compute Jacobian", GREEN);
@@ -62,9 +67,10 @@ Mesh::Mesh(Config config) : config(config)
     // const std::vector<int>& wantedOrientations = std::vector<int>()
     int _numComponents;
     gmsh::model::mesh::getBasisFunctions(m_elType[0], m_elParamCoord, config.elementType,
-                                         _numComponents, m_elBasisFcts, _numOrientations);
+                                         _numComponents, m_elBasisFcts, _numOrientations);  //获得积分点上基函数信息,以二维二阶三角形为例,Gauss4有3个积分点,基函数个数为3 m_elBasisFcts = [0.66666667, 0.16666667, 0.16666667, 0.16666667, 0.16666667,
+                                                                                                                                                                              //0.66666667, 0.16666667, 0.66666667, 0.16666667]分别在三个积分点上的三个基函数值
     gmsh::model::mesh::getBasisFunctions(m_elType[0], m_elParamCoord, "Grad" + config.elementType,
-                                         _numComponents, m_elUGradBasisFcts, _numOrientations);
+                                         _numComponents, m_elUGradBasisFcts, _numOrientations);  //获得基函数的导数的值
 
     // screen_display::write_string(m_elIntType, RED);
     // screen_display::write_string("Grad" + config.elementType, RED);
@@ -72,7 +78,7 @@ Mesh::Mesh(Config config) : config(config)
     //                                      m_elIntParamCoords, *new int, m_elUGradBasisFcts);
 
     gmsh::model::mesh::getJacobians(m_elType[0], m_elParamCoord, m_elJacobians,
-                                    m_elJacobianDets, m_elIntPtCoords);
+                                    m_elJacobianDets, m_elIntPtCoords);  //获得每个单元的积分点的Jacobian矩阵以及行列式的值,以二维四阶三角形为例,Gauss8有16个积分点,m_elJacobians有 m_elNum*16*9 个值 m_elJacobians = [e1g1Jxu, e1g1Jyu, e1g1Jzu, e1g1Jxv, ..., e1g1Jzw, e1g2Jxu, ..., e1gGJzw, e2g1Jxu, ...]
 
     // std::ofstream _outfile_("m_elJacobians.txt");
     // _outfile_ << "size=" << m_elJacobians.size() << std::endl;
@@ -82,7 +88,7 @@ Mesh::Mesh(Config config) : config(config)
 
     // pp("Jacobian determinants at integration points", m_elJacobianDets, 1);
 
-    m_elNumIntPts = (int)m_elJacobianDets.size() / m_elNum;
+    m_elNumIntPts = (int)m_elJacobianDets.size() / m_elNum;  //获得积分点个数 m_elNumIntPts
 
     auto end = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -105,15 +111,15 @@ Mesh::Mesh(Config config) : config(config)
      */
 
     start = std::chrono::system_clock::now();
-    std::vector<double> jacobian(m_elDim * m_elDim);
-    m_elGradBasisFcts.resize(m_elNum * m_elNumNodes * m_elNumIntPts * 3);
+    std::vector<double> jacobian(m_elDim * m_elDim);  //Jacobian矩阵
+    m_elGradBasisFcts.resize(m_elNum * m_elNumNodes * m_elNumIntPts * 3);  //m_elNum 单元个数, m_elNumNodes 单元节点个数(基函数个数), m_elNumIntPts 积分点个数
 
     // #pragma omp parallel for
-    for (size_t el = 0; el < m_elNum; ++el)
+    for (size_t el = 0; el < m_elNum; ++el)  //遍历每个单元
     {
-        for (int g = 0; g < m_elNumIntPts; ++g)
+        for (int g = 0; g < m_elNumIntPts; ++g)  //遍历单元上每个积分点   
         {
-            for (int f = 0; f < m_elNumNodes; ++f)
+            for (int f = 0; f < m_elNumNodes; ++f)  //遍历积分点上的基函数
             {
                 // The copy operations are not required. They're simply enforced
                 // to ensure that the inputs (jacobian, grad) remains unchanged.
@@ -138,11 +144,11 @@ Mesh::Mesh(Config config) : config(config)
 
     // pp("Element jacobian", jacobian, 1);
 
-    assert(m_elType.size() == 1);
-    assert(m_elNodeTags.size() == m_elNum * m_elNumNodes);
-    assert(m_elJacobianDets.size() == m_elNum * m_elNumIntPts);
-    assert(m_elBasisFcts.size() == m_elNumNodes * m_elNumIntPts);
-    assert(m_elGradBasisFcts.size() == m_elNum * m_elNumIntPts * m_elNumNodes * 3);
+    assert(m_elType.size() == 1);                                                      //检查网格单元类型数量
+    assert(m_elNodeTags.size() == m_elNum * m_elNumNodes);                             //检查网格节点总数(单元个数*单元节点个数)
+    assert(m_elJacobianDets.size() == m_elNum * m_elNumIntPts);                        //检查Jacobians行列式个数(单元个数*单元积分点个数)
+    assert(m_elBasisFcts.size() == m_elNumNodes * m_elNumIntPts);                      //检查基函数总数(单元节点个数*单元积分点个数) 注意这里单元节点个数=对应阶数的基函数个数
+    assert(m_elGradBasisFcts.size() == m_elNum * m_elNumIntPts * m_elNumNodes * 3);    //检查梯度基函数总数(单元个数*单元积分点个数*单元节点个数*3) 这里gmsh获得的 m_elUGradBasisFcts = 单元积分点个数*单元节点个数*3 , m_elGradBasisFcts 为物理坐标系下的
 
     end = std::chrono::system_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);

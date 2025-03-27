@@ -8,7 +8,7 @@ MARK_AS_ADVANCED(LIBRARY_OUTPUT_PATH EXECUTABLE_OUTPUT_PATH)
 
 # build type is "" by default in Linux
 # IF(NOT CMAKE_BUILD_TYPE)
-SET(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
+# SET(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
 
 # ENDIF()
 
@@ -25,9 +25,13 @@ ENDIF()
 
 # find gmsh-sdk
 # gmsh.h
-SET(GMSH_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/3rdParty/gmsh/gmsh-4.13.1-Linux64-sdk/include)
-SET(GMSH_LIBRARIES ${PROJECT_SOURCE_DIR}/3rdParty/gmsh/gmsh-4.13.1-Linux64-sdk/lib/libgmsh.so)
-SET(GMSH_EXECUTABLE ${PROJECT_SOURCE_DIR}/3rdParty/gmsh/gmsh-4.13.1-Linux64-sdk/bin/gmsh)
+# SET(GMSH_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/3rdParty/gmsh/gmsh-4.13.1-Linux64-sdk/include)
+# SET(GMSH_LIBRARIES ${PROJECT_SOURCE_DIR}/3rdParty/gmsh/gmsh-4.13.1-Linux64-sdk/lib/libgmsh.so)
+# SET(GMSH_EXECUTABLE ${PROJECT_SOURCE_DIR}/3rdParty/gmsh/gmsh-4.13.1-Linux64-sdk/bin/gmsh)
+
+set(GMSH_INCLUDE_DIRS "/usr/include/gmsh")
+set(GMSH_LIBRARIES "/usr/lib64/libgmsh.so")
+set(GMSH_EXECUTABLE "/usr/bin/gmsh")
 
 FIND_PATH(GMSH_INCLUDE_DIRS NAMES "gmsh.h")
 MESSAGE(STATUS "GMSH_INCLUDE_DIRS=" ${GMSH_INCLUDE_DIRS})

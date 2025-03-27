@@ -21,6 +21,6 @@ Physical Curve("Absorbing") = {1, 2, 3, 4};
 // 计算域
 Physical Surface("Domain") = {1};
 
-Mesh.ElementOrder = 4;  // 生成四阶网格
+Mesh.ElementOrder = 2;  // 生成四阶网格
 
 Mesh 2;
