@@ -418,7 +418,7 @@ namespace solver
             /**
              *  Savings and prints
              */
-            if (tDisplay >= config.timeRate || step == 0)
+            if (tDisplay >= config.timeRate - 1e-12 || step == 0)  // 设置 config.timeRate = 0.02 , 但实际上是 0.20000000000000001
             {
                 tDisplay = 0;
 
