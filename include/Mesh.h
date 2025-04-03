@@ -216,6 +216,19 @@ public:
     void writeVTUb(std::string filename, std::vector<std::vector<double>> &u);
     void writePVD(std::string filename);
 
+    /** 
+     * debug std::vector<T> &vector
+     * print_vector(m_elFNodeTagsOrdered);
+    */
+    template <typename T>
+    void print_vector(std::vector<T> &vector);
+    /** 
+     * debug mstd::vector<std::vector<T>> &matrix
+     * print_matrix(m_fNodeTags_tab_full);
+    */
+    template <typename T>
+    void print_matrix(std::vector<std::vector<T>> &matrix);
+
 private:
     Config config;    // Configuration object
 

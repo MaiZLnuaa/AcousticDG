@@ -8,3 +8,6 @@ results/
 post_processing/*.vtu
 
 *.csv
+
+*.geo
+*.msh

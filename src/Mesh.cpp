@@ -168,25 +168,25 @@ Mesh::Mesh(Config config) : config(config)
      ******************************/
     screen_display::write_string("Faces treatment", GREEN);
     start = std::chrono::system_clock::now();
-    m_fDim = m_elDim - 1;
+    m_fDim = m_elDim - 1;  // face维度（点0 线1 面2）
     m_fName = m_fDim == 0 ? "point" : m_fDim == 1 ? "line"
                                   : m_fDim == 2   ? "triangle"
-                                                  : "None"; // Quads not yet supported.
+                                                  : "None"; // Quads not yet supported.  //点 point 线 line 面 triangle
     m_fNumNodes = m_fDim == 0 ? 1 : m_fDim == 1 ? 1 + m_elOrder
                                 : m_fDim == 2   ? (m_elOrder + 1) * (m_elOrder + 2) / 2
-                                                : 0; // Triangular elements only.
+                                                : 0; // Triangular elements only.  //face上的节点数
 
-    m_fType = gmsh::model::mesh::getElementType(m_fName, m_elOrder);
+    m_fType = gmsh::model::mesh::getElementType(m_fName, m_elOrder);  //face类型
 
     /**
      * [1] Get Faces for all elements
      */
     if (m_fDim < 2)
-        gmsh::model::mesh::getElementEdgeNodes(m_elType[0], m_elFNodeTags, -1);
+        gmsh::model::mesh::getElementEdgeNodes(m_elType[0], m_elFNodeTags, -1);  //获取二维单元的face（线）上的节点编号 m_elFNodeTags
     else
         gmsh::model::mesh::getElementFaceNodes(m_elType[0], 3, m_elFNodeTags, -1);
 
-    m_fNumPerEl = m_elFNodeTags.size() / (m_elNum * m_fNumNodes);
+    m_fNumPerEl = m_elFNodeTags.size() / (m_elNum * m_fNumNodes);  //每个单元的face个数  二维三角形单元的 m_fNumPerEl = 3
     end = std::chrono::system_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     screen_display::write_value("Elapsed time:", elapsed.count() * 1.0e-6, "s", BLUE);
@@ -198,7 +198,7 @@ Mesh::Mesh(Config config) : config(config)
     start = std::chrono::system_clock::now();
 
     //! ////////////////////////////////
-    getUniqueFaceNodeTags();
+    getUniqueFaceNodeTags();  //去除重复的face
     //! ////////////////////////////////
 
     end = std::chrono::system_clock::now();
@@ -212,13 +212,14 @@ Mesh::Mesh(Config config) : config(config)
      */
     screen_display::write_string("Create a single entity");
     start = std::chrono::system_clock::now();
-    m_fEntity = gmsh::model::addDiscreteEntity(m_fDim);
+    m_fEntity = gmsh::model::addDiscreteEntity(m_fDim);  //创建新的gmsh实体
 
-    gmsh::model::mesh::addElementsByType(m_fEntity, m_fType, {}, m_fNodeTags);
+    gmsh::model::mesh::addElementsByType(m_fEntity, m_fType, {}, m_fNodeTags);  //将face节点编号添加到新的gmsh实体中
 
-    m_fIntType = m_elIntType;
+    // m_fIntType = m_elIntType;
+    m_fIntType = "Gauss" + std::to_string(2 * m_elOrder + 1);
 
-    gmsh::model::mesh::getIntegrationPoints(m_fType, m_fIntType, m_fIntParamCoords, m_fWeight);
+    gmsh::model::mesh::getIntegrationPoints(m_fType, m_fIntType, m_fIntParamCoords, m_fWeight);  //获得面的积分点坐标和权重
 
     m_fNum = m_fNodeTags.size() / m_fNumNodes;
     end = std::chrono::system_clock::now();
@@ -231,7 +232,8 @@ Mesh::Mesh(Config config) : config(config)
      */
     screen_display::write_string("Faces - Compute Jacobian");
     start = std::chrono::system_clock::now();
-    m_fIntType = m_elIntType;
+    // m_fIntType = m_elIntType;
+    m_fIntType = "Gauss" + std::to_string(2 * m_elOrder + 1);
 
     gmsh::model::mesh::getBasisFunctions(m_fType, m_fIntParamCoords, config.elementType, *new int, m_fBasisFcts, _numOrientations);
 
@@ -368,6 +370,9 @@ Mesh::Mesh(Config config) : config(config)
             m_fBiTangents.insert(m_fBiTangents.end(), bitangent.begin(), bitangent.end());
         }
     }
+
+    // std::cout << "size: " << m_fNormals.size() << std::endl;
+    // print_vector(m_fNormals);
 
     if (m_elDim == 3 && m_elOrder != 1)
         fc = -1;
@@ -984,18 +989,26 @@ void Mesh::updateFlux(std::vector<std::vector<double>> &u, std::vector<std::vect
  * List of nodes for each unique face given a list of node per face and per elements
  */
 
-void Mesh::getUniqueFaceNodeTags()
+void Mesh::getUniqueFaceNodeTags()  //从网格数据中提取唯一的face节点编号,并进行一定的排序和去重操作
 {
     // Ordering per face for efficient comparison
-    m_elFNodeTagsOrdered = m_elFNodeTags;
+    m_elFNodeTagsOrdered = m_elFNodeTags;  // 先复制 m_elFNodeTags, m_elFNodeTagsOrdered是m_elFNodeTags的排序版本
+
+    // std::cout<<"m_elFNodeTagsOrdered:"<<std::endl;
+    // print_vector(m_elFNodeTagsOrdered);
+
     // #pragma omp parallel for
     for (int i = 0; i < m_elFNodeTagsOrdered.size(); i += m_fNumNodes)
         std::sort(/*std::execution::par,*/ m_elFNodeTagsOrdered.begin() + i, m_elFNodeTagsOrdered.begin() + (i + m_fNumNodes));
+        //对每个面的节点编号进行排序,比如二阶三角形单元,m_fNumNodes=3, m_elFNodeTagsOrdered[0] = 11, m_elFNodeTagsOrdered[1] = 4, m_elFNodeTagsOrdered[2] = 13;排序后为m_elFNodeTagsOrdered[0] = 4, m_elFNodeTagsOrdered[1] = 11, m_elFNodeTagsOrdered[2] = 13
 
+    // std::cout<<"m_elFNodeTagsOrdered:"<<std::endl;
+    // print_vector(m_elFNodeTagsOrdered);
+    
     screen_display::write_string("get Unique Face Node Tags", RED);
 
-    m_fNodeTags = m_elFNodeTags;
-    std::vector<size_t> m_fNodeTags_t;
+    m_fNodeTags = m_elFNodeTags;  // 先复制m_elFNodeTags, m_fNodeTags是最终的唯一面节点标号集合(排序和去重)  二维 m_elFNodeTags 一个face上的节点编号可能出现2次
+    std::vector<size_t> m_fNodeTags_t;  // m_fNodeTags_t是face上的节点编号
     std::vector<size_t> m_fNodeTags_tmp;
     std::vector<std::vector<size_t>> m_fNodeTags_tab;
     size_t fNumNativeNodes;
@@ -1003,22 +1016,24 @@ void Mesh::getUniqueFaceNodeTags()
     //! TIMER start ////////////////////////////////
     auto start = std::chrono::system_clock::now();
     //! ////////////////////////////////////////////
-    if (m_fDim < 2)
+    if (m_fDim < 2)  //处理point 0 和 line 1
     {
         screen_display::write_string("Create and get all egdes", BLUE);
         std::vector<size_t> edge_tags;
-        gmsh::model::mesh::createEdges();
-        gmsh::model::mesh::getAllEdges(edge_tags, m_fNodeTags_t);
-        fNumNativeNodes = 2;
+        gmsh::model::mesh::createEdges();  //创建Gmsh的边数据
+        gmsh::model::mesh::getAllEdges(edge_tags, m_fNodeTags_t);  //获取所有边的编号edge_tags和边的节点编号m_fNodeTags_t
+        fNumNativeNodes = 2;  //二维情况,每条边只有2个节点
 
-        std::vector<std::vector<size_t>> m_fNodeTags_tab_full = vector_to_matrix(m_fNodeTags, m_fNumNodes);
-        std::vector<std::vector<size_t>> m_fNodeTags_t_tab = vector_to_matrix(m_fNodeTags_t, fNumNativeNodes);
+        std::vector<std::vector<size_t>> m_fNodeTags_tab_full = vector_to_matrix(m_fNodeTags, m_fNumNodes);  //将 m_fNodeTags 转换成 二维数组vector<vector>，每行存一个面（边）的节点编号(每行有 m_fNumNodes 个节点编号)
+        std::vector<std::vector<size_t>> m_fNodeTags_t_tab = vector_to_matrix(m_fNodeTags_t, fNumNativeNodes);  //将 m_fNodeTags_t 转换成 二维数组vector<vector>，每行存一个 Gmsh 生成的边的节点编号(每行有 fNumNativeNodes 个节点编号)
+        
+        // print_matrix(m_fNodeTags_tab_full);
 
-        for (size_t i = 0; i < m_fNodeTags_tab_full.size(); i++)
+        for (size_t i = 0; i < m_fNodeTags_tab_full.size(); i++)  //m_fNodeTags_tab_full[i] 是一个face（边）的节点列表,二阶三角形一个face(边)有3个节点,前两个节点为端点编号
         {
-            for (size_t j = 0; j < m_fNodeTags_t_tab.size(); j++)
+            for (size_t j = 0; j < m_fNodeTags_t_tab.size(); j++)  //m_fNodeTags_t_tab[j] 是 Gmsh 生成的边的节点列表,二阶三角形一个face(边)有2个节点
             {
-                if (isNCoincidentValues2d(m_fNodeTags_tab_full[i], m_fNodeTags_t_tab[j]))
+                if (isNCoincidentValues2d(m_fNodeTags_tab_full[i], m_fNodeTags_t_tab[j]))  //检查两个边是否重合 (去重操作) 得到的 m_fNodeTags_tab 是去重后(没排序)的结果
                 {
                     m_fNodeTags_tab.push_back(m_fNodeTags_tab_full[i]);
                     erase_row_from_matrix(m_fNodeTags_t_tab, j);
@@ -1026,6 +1041,7 @@ void Mesh::getUniqueFaceNodeTags()
                 }
             }
         }
+        // print_matrix(m_fNodeTags_tab);
     }
     else
     {
@@ -1070,9 +1086,11 @@ void Mesh::getUniqueFaceNodeTags()
     // m_fNodeTags.clear();
     m_fNodeTags = matrix_to_vector(m_fNodeTags_tab, tmp);
     // m_fNodeTagsOrdered.clear();
-    m_fNodeTagsOrdered = m_fNodeTags;
+    m_fNodeTagsOrdered = m_fNodeTags;  // m_fNodeTagsOrdered (排序)
     for (int i = 0; i < m_fNodeTagsOrdered.size(); i += m_fNumNodes)
         std::sort(/*std::execution::par,*/ m_fNodeTagsOrdered.begin() + i, m_fNodeTagsOrdered.begin() + (i + m_fNumNodes));
+
+    // print_vector(m_fNodeTagsOrdered);
 
     screen_display::write_if_false(tmp == m_fNumNodes, "Bad dimension error...");
 
@@ -1083,19 +1101,27 @@ void Mesh::getUniqueFaceNodeTags()
     //! //////////////////////////////////////////////////////////////////////////////
 }
 
-std::vector<size_t> vector_of_tags(size_t vec_size, size_t offset)
+std::vector<size_t> vector_of_tags(size_t vec_size, size_t offset)  // 为一组元素生成唯一的索引编号(tags)
 {
-    std::vector<size_t> value;
-    // std::cout<<offset<<std::endl;
-    for (size_t i = 0, id = 0; i < vec_size; i++)
-    {
-        if (i % offset == 0)
-            id++;
-        value.push_back(id - 1);
-        // value.push_back((i % offset == 0)?(id++ - 1):id);
-    }
+    std::vector<size_t> value(vec_size);
+    for (size_t i = 0; i < vec_size; i++)
+        value[i] = i / offset;
     return value;
 }
+// std::vector<size_t> vector_of_tags(size_t vec_size, size_t offset)  // 为一组元素生成唯一的索引编号(tags)
+// {
+//     std::vector<size_t> value;
+//     // std::cout<<offset<<std::endl;
+//     for (size_t i = 0, id = 0; i < vec_size; i++)
+//     {
+//         if (i % offset == 0)
+//             id++;
+//         value.push_back(id - 1);
+//         // value.push_back((i % offset == 0)?(id++ - 1):id);
+//     }
+//     return value;
+// }
+
 void Mesh::getConnectivityFaceToElement()
 {
     //! TIMER start ////////////////////////////////
@@ -1103,11 +1129,20 @@ void Mesh::getConnectivityFaceToElement()
     //! ////////////////////////////////////////////
     m_fNbrElIds.resize(m_fNum);
 
-    std::vector<std::vector<size_t>> m_elFNodeTagsOrdered_tab = vector_to_matrix(m_elFNodeTagsOrdered, m_fNumNodes);
-    std::vector<std::vector<size_t>> m_fNodeTagsOrdered_tab = vector_to_matrix(m_fNodeTagsOrdered, m_fNumNodes);
+    std::vector<std::vector<size_t>> m_elFNodeTagsOrdered_tab = vector_to_matrix(m_elFNodeTagsOrdered, m_fNumNodes);  // 将单元面节点标签转换为矩阵,一行有 m_fNumNodes 个元素  (m_elFNodeTagsOrdered 已经排序,但没有去重)
+    std::vector<std::vector<size_t>> m_fNodeTagsOrdered_tab = vector_to_matrix(m_fNodeTagsOrdered, m_fNumNodes);      // 将面节点标签转换为矩阵,一行有 m_fNumNodes 个元素 (m_fNodeTagsOrdered 已经排序和去重)
 
-    std::vector<size_t> elFtags = vector_of_tags(m_elFNodeTagsOrdered_tab.size(), m_fNumPerEl); //! vector of elements face tags
-    std::vector<size_t> ftags = vector_of_tags(m_fNodeTagsOrdered_tab.size(), 1);               //! vector of face tags
+    std::vector<size_t> elFtags = vector_of_tags(m_elFNodeTagsOrdered_tab.size(), m_fNumPerEl); //! vector of elements face tags  // 为单元的每个面分配一个ID 比如二维三角形单元,一个单元里的三条边分配一个ID(注意,同一条边在不同单元的ID不一样)
+    std::vector<size_t> ftags = vector_of_tags(m_fNodeTagsOrdered_tab.size(), 1);               //! vector of face tags  //为所有面分配一个ID 二维网格中有多少条边就有多少个ID(注意,一条边只有一个ID)
+
+    //debug
+    // std::cout << "m_elFNodeTagsOrdered_tab.size(): " << m_elFNodeTagsOrdered_tab.size() << std::endl;
+    // std::cout << "elFtags:" << std::endl;
+    // print_vector(elFtags);
+
+    // std::cout << "m_fNodeTagsOrdered_tab.size(): " << m_fNodeTagsOrdered_tab.size() << std::endl;
+    // std::cout << "ftags:" << std::endl;
+    // print_vector(ftags);
 
     for (size_t i = 0; i < m_elFNodeTagsOrdered_tab.size(); i++)
     {
@@ -1115,8 +1150,8 @@ void Mesh::getConnectivityFaceToElement()
         {
             if (isNCoincidentValues(m_elFNodeTagsOrdered_tab[i], m_fNodeTagsOrdered_tab[j], m_fNumNodes))
             {
-                m_elFIds.push_back(ftags[j]);
-                m_fNbrElIds[ftags[j]].push_back(elFtags[i]);
+                m_elFIds.push_back(ftags[j]);  // 记录匹配成功的面ID
+                m_fNbrElIds[ftags[j]].push_back(elFtags[i]);  // 记录匹配成功的单元ID(把面ID ftags[j] 与单元ID elFtags[i] 对应起来)
                 if (m_fNbrElIds[ftags[j]].size() == 2)
                 {
                     erase_row_from_matrix(m_fNodeTagsOrdered_tab, j);
@@ -1127,6 +1162,12 @@ void Mesh::getConnectivityFaceToElement()
             }
         }
     }
+
+    //debug
+    // std::cout << "m_elFIds:" << std::endl;
+    // print_vector(m_elFIds);
+    // std::cout << "m_fNbrElIds:" << std::endl;
+    // print_matrix(m_fNbrElIds);
 
     //! TIMER END ///////////////////////////////////////////////////////////////////
     auto end = std::chrono::system_clock::now();
@@ -1245,7 +1286,7 @@ void Mesh::writePVD(std::string filename)
     for (double t = config.timeStart, step = 0, tDisplay = 0; t <= config.timeEnd;
          t += config.timeStep, tDisplay += config.timeStep, ++step)
     {
-        if (tDisplay >= config.timeRate || step == 0)
+        if (tDisplay >= config.timeRate - 1e-12 || step == 0)
         {
             tDisplay = 0;
             std::string vtu_filename = "results/result" + std::to_string((int)step) + ".vtu";
@@ -1256,4 +1297,32 @@ void Mesh::writePVD(std::string filename)
     file << "</VTKFile>" << std::endl;
 
     file.close();
+}
+
+/** 
+ * debug std::vector<std::vector<T>> &matrix
+ * print_matrix(m_fNodeTags_tab_full);
+*/
+template <typename T>
+void Mesh::print_matrix(std::vector<std::vector<T>> &matrix) {
+    // std::cout << "m_fNodeTags_tab_full:" << std::endl;
+    for (const auto &row : matrix) {
+        for (const auto &val : row) {
+            std::cout << val << " ";
+        }
+        std::cout << std::endl;
+    }
+}
+
+/** 
+ * debug td::vector<T> &vector
+ * print_vector(m_elFNodeTagsOrdered);
+*/
+template <typename T>
+void Mesh::print_vector(std::vector<T> &vector) {
+    // std::cout << "m_elFNodeTagsOrdered:" << std::endl;
+    for (const auto &val : vector) {
+        std::cout << val << " ";
+    }
+    std::cout << std::endl;
 }
