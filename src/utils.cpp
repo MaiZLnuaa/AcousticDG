@@ -456,7 +456,13 @@ namespace VTKUtils
         const size_t N = gmsh_node_tags.size();
         std::vector<size_t> vtk_ordered;
 
-        if (dim == 2 && order == 2)
+        if (dim == 2 && order == 1)
+        {
+            static const int map[3] = {0, 1, 2};
+            for (int i = 0; i < 3; ++i)
+                vtk_ordered.push_back(gmsh_node_tags[map[i]]);
+        }
+        else if (dim == 2 && order == 2)
         {
             static const int map[6] = {0, 1, 2, 3, 4, 5};
             for (int i = 0; i < 6; ++i)
@@ -472,6 +478,18 @@ namespace VTKUtils
         {
             static const int map[15] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
             for (int i = 0; i < 15; ++i)
+                vtk_ordered.push_back(gmsh_node_tags[map[i]]);
+        }
+        else if (dim == 2 && order == 5)
+        {
+            static const int map[21] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};  
+            for (int i = 0; i < 21; ++i)
+                vtk_ordered.push_back(gmsh_node_tags[map[i]]);
+        }
+        else if (dim ==3 && order == 1)
+        {
+            static const int map[4] = {0, 1, 2, 3};
+            for (int i = 0; i < 4; ++i)
                 vtk_ordered.push_back(gmsh_node_tags[map[i]]);
         }
         else if (dim == 3 && order == 2)
@@ -493,6 +511,14 @@ namespace VTKUtils
               19, 18, 17, 16, 25, 26, 27, 33, 31, 32, 28, 29, 30, 22, 23, 24, 34
             };
             for (int i = 0; i < 35; ++i)
+                vtk_ordered.push_back(gmsh_node_tags[map[i]]);
+        }
+        else if (dim == 3 && order == 5)
+        {
+            static const int map[56] = {0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 19, 18, 17,
+                16, 27, 26, 25, 24, 23, 22, 21, 20, 34, 35, 36, 37, 38, 39, 48, 46, 47, 51,
+                49, 50, 40, 41, 42, 43, 44, 45, 28, 29, 30, 31, 32, 33, 52, 53, 54, 55};
+            for (int i = 0; i < 56; ++i)
                 vtk_ordered.push_back(gmsh_node_tags[map[i]]);
         }
         else
