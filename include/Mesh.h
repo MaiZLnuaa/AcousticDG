@@ -214,7 +214,12 @@ public:
      */
     // void writeVTU(std::string filename, std::vector<std::vector<double>> &u);
     void writeVTUb(std::string filename, std::vector<std::vector<double>> &u);
+
+    void writeVTUb_highOrder(std::string filename, std::vector<std::vector<double>> &u);
+
     void writePVD(std::string filename);
+
+    void writePVD_highOrder(std::string filename);
 
     /** 
      * debug std::vector<T> &vector

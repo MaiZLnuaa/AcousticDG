@@ -10,6 +10,9 @@
 #include "configParser.h"
 #include "utils.h"
 
+#include <vtkLagrangeTriangle.h>
+#include <vtkLagrangeTetra.h>
+
 /**
  * Mesh constructor: load the mesh data and parameters thanks to
  * Gmsh api. Create the elements mapping and set the boundary conditions.
@@ -426,20 +429,24 @@ Mesh::Mesh(Config config) : config(config)
 
     m_fNToElNIds.resize(m_fNum);
     // #pragma omp parallel for
-    for (int f = 0; f < m_fNum; ++f)
+    for (int f = 0; f < m_fNum; ++f)  // 遍历每个面
     {
-        for (int nf = 0; nf < m_fNumNodes; ++nf)
+        for (int nf = 0; nf < m_fNumNodes; ++nf)  // 遍历每个面的节点
         {
-            for (size_t el : m_fNbrElIds[f])
+            for (size_t el : m_fNbrElIds[f])  // 遍历当前面关联的单元
             {
-                for (int nel = 0; nel < m_elNumNodes; ++nel)
+                for (int nel = 0; nel < m_elNumNodes; ++nel)  // 遍历单元的节点
                 {
-                    if (fNodeTag(f, nf) == elNodeTag(el, nel))
+                    if (fNodeTag(f, nf) == elNodeTag(el, nel))  // 如果面上的节点与单元上的节点匹配
                         m_fNToElNIds[f].push_back(nel);
                 }
             }
         }
     }
+
+    // std::cout << "m_fNToElNIds:" << std::endl;
+    // print_matrix(m_fNToElNIds);
+
     end = std::chrono::system_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     screen_display::write_value("Elapsed time:", elapsed.count() * 1.0e-6, "s", BLUE);
@@ -462,23 +469,23 @@ Mesh::Mesh(Config config) : config(config)
 
     double dotProduct;
     std::vector<double> m_elBarycenters, fNodeCoord(3), elOuterDir(3), paramCoords;
-    gmsh::model::mesh::getBarycenters(m_elType[0], -1, false, true, m_elBarycenters);
+    gmsh::model::mesh::getBarycenters(m_elType[0], -1, false, true, m_elBarycenters);  // 获取单元的质心 m_elBarycenters, 每个单元对应3个坐标值(x, y, z)
 
     m_elFOrientation.clear();
 
-    for (size_t el = 0; el < m_elNum; ++el)
+    for (size_t el = 0; el < m_elNum; ++el)  // 遍历每个单元
     {
-        for (int f = 0; f < m_fNumPerEl; ++f)
+        for (int f = 0; f < m_fNumPerEl; ++f)  // 遍历每个单元的所有面
         {
             dotProduct = 0.0;
 
             int _dim, _tag;
 
-            gmsh::model::mesh::getNode(elFNodeTag(el, f), fNodeCoord, paramCoords, _dim, _tag);
+            gmsh::model::mesh::getNode(elFNodeTag(el, f), fNodeCoord, paramCoords, _dim, _tag);  // 获取面的节点坐标,存储在 fNodeCoord 中
 
             for (int x = 0; x < m_Dim; x++)
             {
-                elOuterDir[x] = fNodeCoord[x] - m_elBarycenters[el * 3 + x];
+                elOuterDir[x] = fNodeCoord[x] - m_elBarycenters[el * 3 + x];  // 从单元质心到面节点的向量
                 dotProduct += elOuterDir[x] * fNormal(elFId(el, f), 0, x);
             }
 
@@ -486,6 +493,9 @@ Mesh::Mesh(Config config) : config(config)
             m_elFOrientation.push_back(value);
         }
     }
+
+    // std::cout << "m_elFOrientation:" << std::endl;
+    // print_vector(m_elFOrientation);
 
     end = std::chrono::system_clock::now();
     elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -1276,6 +1286,132 @@ void Mesh::writeVTUb(std::string filename, std::vector<std::vector<double>> &u)
     writer->Write();
 }
 
+void Mesh::writeVTUb_highOrder(std::string filename, std::vector<std::vector<double>> &u)
+{
+    screen_display::write_string("Write High-Order VTU: " + filename, BOLDGREEN);
+
+    std::vector<size_t> node_tag;
+    std::vector<double> coord_tmp, param_coord_tmp;
+    gmsh::model::mesh::getNodes(node_tag, coord_tmp, param_coord_tmp);
+
+    size_t numNodes = node_tag.size();
+    // std::cout << "numNodes: " << numNodes << std::endl;
+
+    vtkNew<vtkPoints> points;
+    vtkNew<vtkCellArray> cellArray;
+    vtkNew<vtkDoubleArray> pressure, density, velocity;
+    vtkNew<vtkUnstructuredGrid> unstructuredGrid;
+    vtkNew<vtkXMLUnstructuredGridWriter> writer;
+
+    for (size_t i = 0; i < numNodes; ++i)
+    {
+        size_t idx = 3 * i;
+        points->InsertNextPoint(coord_tmp[idx], coord_tmp[idx + 1], coord_tmp[idx + 2]);
+    }
+
+
+    size_t elNumNodes = getElNumNodes(); // 高阶单元节点数，比如二阶三角形是6
+    // std::cout << coord_tmp.size() << std::endl;
+    // std::cout << "elNumNodes: " << elNumNodes << std::endl;
+    // std::cout << "m_elDim: " << m_elDim << std::endl;
+    
+    for (size_t el = 0; el < getElNum(); ++el)
+    {
+        // 构造 Gmsh 节点编号
+        std::vector<size_t> node_tags_gmsh(elNumNodes);
+        for (size_t j = 0; j < elNumNodes; ++j)
+        {
+            node_tags_gmsh[j] = elNodeTag(el, j);
+        }
+
+        // 转换为 VTK 顺序
+        auto node_tags_vtk = VTKUtils::mapGmshToVTKOrder(node_tags_gmsh, m_elOrder, m_elDim);
+        if (m_elDim == 2)
+        {
+            vtkNew<vtkLagrangeTriangle> tri;
+            tri->GetPointIds()->SetNumberOfIds(elNumNodes);
+            
+            for (size_t j = 0; j < elNumNodes; ++j)
+            {
+                tri->GetPointIds()->SetId(j, node_tags_vtk[j]-1);
+            }
+            
+            cellArray->InsertNextCell(tri);
+        }
+        else if (m_elDim == 3)
+        {
+            vtkNew<vtkLagrangeTetra> tetra;
+            tetra->GetPointIds()->SetNumberOfIds(elNumNodes);
+
+            for (size_t j = 0; j < elNumNodes; ++j)
+            {
+                tetra->GetPointIds()->SetId(j, node_tags_vtk[j]-1);
+            }
+            cellArray->InsertNextCell(tetra);
+        }
+    }
+
+    pressure->SetName("Pressure [Pa]");
+    pressure->SetNumberOfComponents(1);
+    pressure->SetNumberOfTuples(numNodes);
+
+    density->SetName("Density [kg/m³]");
+    density->SetNumberOfComponents(1);
+    density->SetNumberOfTuples(numNodes);
+
+    velocity->SetName("Velocity [m/s]");
+    velocity->SetNumberOfComponents(3);
+    velocity->SetNumberOfTuples(numNodes);
+
+    // 用来累计每个节点的值和出现次数（用于平均）
+    std::vector<double> p_node(numNodes, 0.0);
+    std::vector<double> rho_node(numNodes, 0.0);
+    std::vector<double> vx_node(numNodes, 0.0);
+    std::vector<double> vy_node(numNodes, 0.0);
+    std::vector<double> vz_node(numNodes, 0.0);
+    std::vector<int> count_node(numNodes, 0);
+
+    for (size_t el = 0; el < getElNum(); ++el)
+    {
+        for (size_t n = 0; n < getElNumNodes(); ++n)
+        {
+            size_t elN = el * getElNumNodes() + n;
+            size_t global_node = elNodeTag(el, n) - 1;  // 假设节点编号是从1开始的
+
+            p_node[global_node]   += u[0][elN];
+            rho_node[global_node] += u[0][elN] / (config.c0 * config.c0);
+            vx_node[global_node]  += u[1][elN];
+            vy_node[global_node]  += u[2][elN];
+            vz_node[global_node]  += u[3][elN];
+            count_node[global_node]++;
+        }
+    }
+
+    // 计算平均并写入
+    for (size_t i = 0; i < numNodes; ++i)
+    {
+        int count = std::max(1, count_node[i]); // 防止除0
+        pressure->SetValue(i, p_node[i] / count);
+        density->SetValue(i, rho_node[i] / count);
+        velocity->SetTuple3(i, vx_node[i] / count, vy_node[i] / count, vz_node[i] / count);
+    }
+
+    unstructuredGrid->SetPoints(points);
+    if (m_elDim == 2)
+        unstructuredGrid->SetCells(VTK_LAGRANGE_TRIANGLE, cellArray);
+    else
+        unstructuredGrid->SetCells(VTK_LAGRANGE_TETRAHEDRON, cellArray);
+
+    unstructuredGrid->GetPointData()->AddArray(pressure);
+    unstructuredGrid->GetPointData()->AddArray(density);
+    unstructuredGrid->GetPointData()->AddArray(velocity);
+
+
+    writer->SetFileName(filename.c_str());
+    writer->SetInputData(unstructuredGrid);
+    writer->Write();
+}
+
 void Mesh::writePVD(std::string filename)
 {
     screen_display::write_string("Write PVD at " + filename, BOLDRED);
@@ -1290,6 +1426,29 @@ void Mesh::writePVD(std::string filename)
         {
             tDisplay = 0;
             std::string vtu_filename = "results/result" + std::to_string((int)step) + ".vtu";
+            file << "    <DataSet timestep=\"" << t << "\" part=\"0\" file=\"" << vtu_filename << "\"/>" << std::endl;
+        }
+    }
+    file << "  </Collection>" << std::endl;
+    file << "</VTKFile>" << std::endl;
+
+    file.close();
+}
+
+void Mesh::writePVD_highOrder(std::string filename)
+{
+    screen_display::write_string("Write PVD at " + filename, BOLDRED);
+    std::ofstream file(filename.c_str(), std::ios_base::ate);
+
+    file << "<VTKFile type=\"Collection\" version=\"1.0\" byte_order=\"LittleEndian\" header_type=\"UInt64\">" << std::endl;
+    file << "  <Collection>" << std::endl;
+    for (double t = config.timeStart, step = 0, tDisplay = 0; t <= config.timeEnd;
+         t += config.timeStep, tDisplay += config.timeStep, ++step)
+    {
+        if (tDisplay >= config.timeRate - 1e-12 || step == 0)
+        {
+            tDisplay = 0;
+            std::string vtu_filename = "highorder_results/result" + std::to_string((int)step) + ".vtu";
             file << "    <DataSet timestep=\"" << t << "\" part=\"0\" file=\"" << vtu_filename << "\"/>" << std::endl;
         }
     }

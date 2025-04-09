@@ -1,16 +1,16 @@
-lc = 5.0;
-
+lc = 1.5;
+half = 10;
 // 定义立方体的 8 个顶点
-Point(1) = {-50, -50, -50, lc};
-Point(2) = { 50, -50, -50, lc};
-Point(3) = { 50,  50, -50, lc};
-Point(4) = {-50,  50, -50, lc};
-Point(5) = {-50, -50,  50, lc};
-Point(6) = { 50, -50,  50, lc};
-Point(7) = { 50,  50,  50, lc};
-Point(8) = {-50,  50,  50, lc};
+Point(1) = {-half, -half, -half, lc};
+Point(2) = { half, -half, -half, lc};
+Point(3) = { half,  half, -half, lc};
+Point(4) = {-half,  half, -half, lc};
+Point(5) = {-half, -half,  half, lc};
+Point(6) = { half, -half,  half, lc};
+Point(7) = { half,  half,  half, lc};
+Point(8) = {-half,  half,  half, lc};
 
-// 定义立方体的 6 个面
+// 定义边
 Line(1) = {1, 2};
 Line(2) = {2, 3};
 Line(3) = {3, 4};
@@ -38,8 +38,12 @@ Plane Surface(22) = {16};
 Plane Surface(23) = {17};
 Plane Surface(24) = {18};
 
+Physical Surface("Absorbing") = {13, 14, 15, 16, 17, 18};
+
 // 形成体
 Surface Loop(25) = {19, 20, 21, 22, 23, 24};
 Volume(26) = {25};
+physical Volume("Domain") = {26};
 
-Mesh.ElementOrder = 4;  // 生成四阶网格 
+
+Mesh.ElementOrder = 2;  // 生成四阶网格 

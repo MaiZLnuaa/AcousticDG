@@ -78,7 +78,8 @@ int main(int argc, char **argv)
         solver::rungeKutta(u, mesh, config);
     else Fatal_Error("Time integration method error")    
 
-    mesh.writePVD("results.pvd");
+    // mesh.writePVD("results.pvd");
+    mesh.writePVD_highOrder("results_highorder.pvd");
 
     int i_m_elDim;
     std::vector<int> i_m_elType;

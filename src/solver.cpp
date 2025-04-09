@@ -186,8 +186,10 @@ namespace solver
                 gmsh::logger::write("[" + std::to_string(t) + "/" + std::to_string(config.timeEnd) + "s] Step number : " + std::to_string((int)step) + ", Elapsed time: " + std::to_string(elapsed.count()) + "s");
                 screen_display::write_string("time\t\tres_p\t\tres_rho\t\tres_vx\t\tres_vy\t\tres_vz\t\telapsed time", BOLDBLUE);
                 // mesh.writeVTK("result.vtk");
-                std::string vtu_filename = "results/result" + std::to_string((int)step) + ".vtu";
-                mesh.writeVTUb(vtu_filename, u);
+                // std::string vtu_filename = "results/result" + std::to_string((int)step) + ".vtu";
+                // mesh.writeVTUb(vtu_filename, u);
+                std::string vtu_filename_highOrder = "highorder_results/result" + std::to_string((int)step) + ".vtu";
+                mesh.writeVTUb_highOrder(vtu_filename_highOrder, u);
             }
 
             /**
@@ -447,8 +449,10 @@ namespace solver
                 gmsh::logger::write("[" + std::to_string(t) + "/" + std::to_string(config.timeEnd) + "s] Step number : " + std::to_string((int)step) + ", Elapsed time: " + std::to_string(elapsed.count()) + "s");
                 screen_display::write_string("time\t\tres_p\t\tres_rho\t\tres_vx\t\tres_vy\t\tres_vz\t\telapsed time", BOLDBLUE);
                 // mesh.writeVTK("result.vtk");
-                std::string vtu_filename = "results/result" + std::to_string((int)step) + ".vtu";
-                mesh.writeVTUb(vtu_filename, u);
+                // std::string vtu_filename = "results/result" + std::to_string((int)step) + ".vtu";
+                // mesh.writeVTUb(vtu_filename, u);
+                std::string vtu_filename_highOrder = "highorder_results/result" + std::to_string((int)step) + ".vtu";
+                mesh.writeVTUb_highOrder(vtu_filename_highOrder, u);
                 // mesh.writeVTK("result.vtk",u);
             }
 

@@ -1,6 +1,8 @@
 #!/bin/sh
-echo "Clean results dir."
-rm results/*
+# echo "Clean results dir."
+# rm results/*
+echo "Clean highorder_results dir."
+rm highorder_results/*
 echo "Start computations"
 # build/bin/dgalerkin doc/config/Cube.conf
 # build/bin/dgalerkin  doc/config/Sphere.conf
@@ -16,5 +18,5 @@ echo "Start computations"
 #build/bin/dgalerkin cases/2d_hilltop/rectangle.json
 #build/bin/dgalerkin cases/2d_hilltop/bump.json
 
-build/bin/dgalerkin doc/config/Gaussian2d.conf
-# build/bin/dgalerkin doc/config/Gaussian3d.conf
+# build/bin/dgalerkin doc/config/Gaussian2d.conf
+build/bin/dgalerkin doc/config/Gaussian3d.conf

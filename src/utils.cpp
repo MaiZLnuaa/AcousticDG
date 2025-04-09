@@ -448,3 +448,62 @@ namespace eigen
         OUT_eigen = A_eigen.cross(B_eigen);
     }
 }
+
+namespace VTKUtils 
+{
+    std::vector<size_t> mapGmshToVTKOrder(const std::vector<size_t>& gmsh_node_tags, int order, int dim)
+    {
+        const size_t N = gmsh_node_tags.size();
+        std::vector<size_t> vtk_ordered;
+
+        if (dim == 2 && order == 2)
+        {
+            static const int map[6] = {0, 1, 2, 3, 4, 5};
+            for (int i = 0; i < 6; ++i)
+                vtk_ordered.push_back(gmsh_node_tags[map[i]]);
+        }
+        else if (dim == 2 && order == 3)
+        {
+            static const int map[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+            for (int i = 0; i < 10; ++i)
+                vtk_ordered.push_back(gmsh_node_tags[map[i]]);
+        }
+        else if (dim == 2 && order == 4)
+        {
+            static const int map[15] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
+            for (int i = 0; i < 15; ++i)
+                vtk_ordered.push_back(gmsh_node_tags[map[i]]);
+        }
+        else if (dim == 3 && order == 2)
+        {
+            static const int map[10] = {0, 1, 2, 3, 4, 5, 6, 7, 9, 8};
+            for (int i = 0; i < 10; ++i)
+                vtk_ordered.push_back(gmsh_node_tags[map[i]]);
+        }
+        else if (dim == 3 && order == 3)
+        {
+            static const int map[20] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 10, 15, 14, 13, 12, 17, 19, 18, 16};
+            for (int i = 0; i < 20; ++i)
+                vtk_ordered.push_back(gmsh_node_tags[map[i]]);
+        }
+        else if (dim == 3 && order == 4)
+        {
+            static const int map[35] = {
+                0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 15, 14, 13, 21, 20,
+              19, 18, 17, 16, 25, 26, 27, 33, 31, 32, 28, 29, 30, 22, 23, 24, 34
+            };
+            for (int i = 0; i < 35; ++i)
+                vtk_ordered.push_back(gmsh_node_tags[map[i]]);
+        }
+        else
+        {
+            std::cerr << "Unsupported element order/dimension or incorrect node count ("
+                      << "order=" << order << ", dim=" << dim << ", node_count=" << N << ").\n";
+            return gmsh_node_tags;  // fallback to original order
+        }
+
+        return vtk_ordered;
+    }
+}
+
+

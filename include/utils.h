@@ -183,4 +183,10 @@ namespace display
     }
 }
 
+namespace VTKUtils 
+{
+    std::vector<size_t> mapGmshToVTKOrder(const std::vector<size_t> &gmsh_node_tags, int order, int dim);
+}
+
+
 #endif // DGALERKIN_UTILS_H
