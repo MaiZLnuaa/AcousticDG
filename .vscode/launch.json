@@ -12,7 +12,7 @@
             // Resolved by CMake Tools:
             "program": "${command:cmake.launchTargetPath}",
             "args": [
-                "/home/xiaomai/code/AcousticDG/doc/config/Gaussian3d.conf"
+                "/home/xiaomai/code/AcousticDG/doc/config/Gaussian2d.conf"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

@@ -188,5 +188,9 @@ namespace VTKUtils
     std::vector<size_t> mapGmshToVTKOrder(const std::vector<size_t> &gmsh_node_tags, int order, int dim);
 }
 
+namespace RestartSimulation
+{
+    void restartsimulation(std::string filename, std::vector<double> &pressure_value, std::vector<double> &velocity_value);//std::vector<std::vector<double>> &velocity_value);
+}
 
 #endif // DGALERKIN_UTILS_H

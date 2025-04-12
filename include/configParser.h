@@ -112,6 +112,10 @@ struct Config
 
     // Save file
     // std::string saveFile = "results.msh";
+
+    // Resart simulation
+    int restartSimulation = 1;
+    std::string resartFileName = "highorder_results/result0.vtu";
 };
 
 namespace config

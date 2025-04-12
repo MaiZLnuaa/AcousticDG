@@ -1409,6 +1409,7 @@ void Mesh::writeVTUb_highOrder(std::string filename, std::vector<std::vector<dou
 
     writer->SetFileName(filename.c_str());
     writer->SetInputData(unstructuredGrid);
+    writer->SetDataModeToAscii();
     writer->Write();
 }
 
@@ -1442,10 +1443,10 @@ void Mesh::writePVD_highOrder(std::string filename)
 
     file << "<VTKFile type=\"Collection\" version=\"1.0\" byte_order=\"LittleEndian\" header_type=\"UInt64\">" << std::endl;
     file << "  <Collection>" << std::endl;
-    for (double t = config.timeStart, step = 0, tDisplay = 0; t <= config.timeEnd;
+    for (double t = 0, step = 0, tDisplay = 0; t <= config.timeEnd + config.timeStep / 2;
          t += config.timeStep, tDisplay += config.timeStep, ++step)
     {
-        if (tDisplay >= config.timeRate - 1e-12 || step == 0)
+        if (tDisplay >= config.timeRate - config.timeStep / 2 || step == 0)
         {
             tDisplay = 0;
             std::string vtu_filename = "highorder_results/result" + std::to_string((int)step) + ".vtu";

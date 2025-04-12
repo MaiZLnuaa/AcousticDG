@@ -58,6 +58,8 @@ namespace config
             config.elementType = configMap["elementType"];
             config.timeIntMethod = configMap["timeIntMethod"];
             // config.saveFile = configMap["saveFile"];
+            config.resartFileName = configMap["resartFileName"];
+            config.restartSimulation = std::stoi(configMap["restartSimulation"]);
             config.numThreads = std::stoi(configMap["numThreads"]);
             config.numThreads = config.numThreads == 1 ? 0 : config.numThreads;
             config.v0[0] = std::stod(configMap["v0_x"]);

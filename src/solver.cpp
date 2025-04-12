@@ -151,7 +151,7 @@ namespace solver
         }
 
         auto start = std::chrono::system_clock::now();
-        for (double t = config.timeStart, step = 0, tDisplay = 0; t <= config.timeEnd;
+        for (double t = config.timeStart, step = int(config.timeStart / config.timeStep), tDisplay = 0; t <= config.timeEnd + config.timeStep / 2;
              t += config.timeStep, tDisplay += config.timeStep, ++step)
         {
 
@@ -161,7 +161,7 @@ namespace solver
              *  Savings and prints
              */
 
-            if (tDisplay >= config.timeRate || step == 0)
+            if (tDisplay >= config.timeRate - config.timeStep / 2 || step == 0)
             {
                 tDisplay = 0;
 
@@ -184,12 +184,13 @@ namespace solver
                 auto end = std::chrono::system_clock::now();
                 auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - start);
                 gmsh::logger::write("[" + std::to_string(t) + "/" + std::to_string(config.timeEnd) + "s] Step number : " + std::to_string((int)step) + ", Elapsed time: " + std::to_string(elapsed.count()) + "s");
-                screen_display::write_string("time\t\tres_p\t\tres_rho\t\tres_vx\t\tres_vy\t\tres_vz\t\telapsed time", BOLDBLUE);
+                // screen_display::write_string("time\t\tres_p\t\tres_rho\t\tres_vx\t\tres_vy\t\tres_vz\t\telapsed time", BOLDBLUE);
                 // mesh.writeVTK("result.vtk");
                 // std::string vtu_filename = "results/result" + std::to_string((int)step) + ".vtu";
                 // mesh.writeVTUb(vtu_filename, u);
                 std::string vtu_filename_highOrder = "highorder_results/result" + std::to_string((int)step) + ".vtu";
                 mesh.writeVTUb_highOrder(vtu_filename_highOrder, u);
+                screen_display::write_string("time\t\tres_p\t\tres_rho\t\tres_vx\t\tres_vy\t\tres_vz\t\telapsed time", BOLDBLUE);
             }
 
             /**
@@ -252,8 +253,8 @@ namespace solver
                     residual[4] += pow(g_v[el][3 * n + 2] - u[3][elN], 2);
                 }
             }
-            outfile << t << ";";
-            std::cout << std::scientific << t << "\t";
+            outfile << t + config.timeStep << ";";
+            std::cout << std::scientific << t + config.timeStep << "\t";
             auto end_time = std::chrono::system_clock::now();
             auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
             for (int eq = 0; eq < residual.size(); ++eq)
@@ -412,7 +413,7 @@ namespace solver
         }
 
         auto start = std::chrono::system_clock::now();
-        for (double t = config.timeStart, step = 0, tDisplay = 0; t <= config.timeEnd;
+        for (double t = config.timeStart, step = int(config.timeStart / config.timeStep), tDisplay = 0; t <= config.timeEnd + config.timeStep / 2;
              t += config.timeStep, tDisplay += config.timeStep, ++step)
         {
             auto start_time = std::chrono::system_clock::now();
@@ -420,7 +421,7 @@ namespace solver
             /**
              *  Savings and prints
              */
-            if (tDisplay >= config.timeRate - 1e-12 || step == 0)  // 设置 config.timeRate = 0.02 , 但实际上是 0.20000000000000001
+            if (tDisplay >= config.timeRate - config.timeStep / 2 || step == 0)  // 设置 config.timeRate = 0.02 , 但实际上是 0.20000000000000001
             {
                 tDisplay = 0;
 
@@ -447,12 +448,13 @@ namespace solver
                 auto end = std::chrono::system_clock::now();
                 auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - start);
                 gmsh::logger::write("[" + std::to_string(t) + "/" + std::to_string(config.timeEnd) + "s] Step number : " + std::to_string((int)step) + ", Elapsed time: " + std::to_string(elapsed.count()) + "s");
-                screen_display::write_string("time\t\tres_p\t\tres_rho\t\tres_vx\t\tres_vy\t\tres_vz\t\telapsed time", BOLDBLUE);
+                // screen_display::write_string("time\t\tres_p\t\tres_rho\t\tres_vx\t\tres_vy\t\tres_vz\t\telapsed time", BOLDBLUE);
                 // mesh.writeVTK("result.vtk");
                 // std::string vtu_filename = "results/result" + std::to_string((int)step) + ".vtu";
                 // mesh.writeVTUb(vtu_filename, u);
                 std::string vtu_filename_highOrder = "highorder_results/result" + std::to_string((int)step) + ".vtu";
                 mesh.writeVTUb_highOrder(vtu_filename_highOrder, u);
+                screen_display::write_string("time\t\tres_p\t\tres_rho\t\tres_vx\t\tres_vy\t\tres_vz\t\telapsed time", BOLDBLUE);
                 // mesh.writeVTK("result.vtk",u);
             }
 
@@ -537,8 +539,8 @@ namespace solver
                     residual[4] += pow(g_v[el][3 * n + 2] - u[3][elN], 2);
                 }
             }
-            outfile << t << ";";
-            std::cout << std::scientific << t << "\t";
+            outfile << t + config.timeStep << ";";
+            std::cout << std::scientific << t + config.timeStep << "\t";
             auto end_time = std::chrono::system_clock::now();
             auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
             for (int eq = 0; eq < residual.size(); ++eq)

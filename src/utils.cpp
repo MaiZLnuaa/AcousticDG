@@ -2,6 +2,16 @@
 #include <iomanip>
 #include <iostream>
 
+#include <filesystem>
+#include <vtkSmartPointer.h>
+#include <vtkXMLUnstructuredGridReader.h>
+#include <vtkUnstructuredGrid.h>
+#include <vtkPointData.h>
+#include <vtkDataArray.h>
+#include <vtkDoubleArray.h>
+#include <vtkDataSet.h>
+#include <vtkDataSetAttributes.h>
+
 #include "utils.h"
 
 extern "C"
@@ -532,4 +542,95 @@ namespace VTKUtils
     }
 }
 
+namespace RestartSimulation
+{
+    void restartsimulation(std::string filename, std::vector<double> &pressure_value, std::vector<double> &velocity_value)//std::vector<std::vector<double>> &velocity_value) 
+    {
+        if(!std::filesystem::exists(filename))
+        {
+            std::cerr << "File " << filename << " does not exist." << std::endl;
+            return;
+        }
+        
+        // 创建读取器
+        vtkSmartPointer<vtkXMLUnstructuredGridReader> reader =
+        vtkSmartPointer<vtkXMLUnstructuredGridReader>::New();
+
+        reader->SetFileName(filename.c_str());
+        reader->Update(); // 执行读取操作
+
+        // 获取读取结果
+        vtkUnstructuredGrid* grid = reader->GetOutput();
+        if (!grid) {
+            std::cerr << "无法读取VTU文件！" << std::endl;
+            return;
+        }
+
+        // 获取点数据
+        vtkPointData* pointData = grid->GetPointData();
+        if (!pointData) {
+            std::cerr << "无法获取点数据！" << std::endl;
+            return;
+        }
+        
+        // 列出所有数组
+        int numArrays = pointData->GetNumberOfArrays();
+        std::cout << "Number of data arrays: " << numArrays << std::endl;
+
+        for (int i = 0; i < numArrays; ++i) {
+            vtkDataArray* array = pointData->GetArray(i);
+            if (array) {
+                std::cout << "Array " << i << ": " << array->GetName() << std::endl;
+            }
+        }
+
+        // 获取指定名称的数组，例如 "Pressure [Pa], Velocity [m/s]"
+        vtkDataArray* solutionPressureArray = pointData->GetArray("Pressure [Pa]");
+        vtkDataArray* solutionVelocityArray = pointData->GetArray("Velocity [m/s]");
+
+        if (solutionPressureArray)
+        {
+            int numTuples = solutionPressureArray->GetNumberOfTuples();
+            pressure_value.resize(numTuples);
+            // 获取数组中的数据
+            // std::ofstream outFile("output_Pressure.txt");
+            for(int i = 0; i < numTuples; i++)
+            {
+                pressure_value[i] = solutionPressureArray->GetComponent(i,0);
+                // outFile << "Node " << i << ": " << pressure_value[i] << std::endl;
+            }
+            // outFile.close();
+        }else{
+            std::cerr << "Solution array 'Pressure [Pa]' not found in the .vtu file!" << std::endl;
+            return;
+        }
+
+        if (solutionVelocityArray)
+        {
+            int numTuples = solutionVelocityArray->GetNumberOfTuples();
+            std::cout << "Number of tuples: " << numTuples << std::endl;
+            // velocity_value.resize(numTuples, std::vector<double>(3, 0.0));
+            velocity_value.resize(numTuples*3);
+            // 获取数组中的数据
+            // std::ofstream outFile("output_Velocity.txt");
+            for(int i = 0; i < numTuples; i++)
+            {
+                // velocity_value[i][0] = solutionVelocityArray->GetComponent(i,0);
+                // velocity_value[i][1] = solutionVelocityArray->GetComponent(i,1);
+                // velocity_value[i][2] = solutionVelocityArray->GetComponent(i,2);
+                // outFile << "Node " << i << ": " << velocity_value[i][0] << " " << velocity_value[i][1] << " " << velocity_value[i][2] << std::endl;
+                
+                velocity_value[i*3] = solutionVelocityArray->GetComponent(i,0);
+                velocity_value[i*3+1] = solutionVelocityArray->GetComponent(i,1);
+                velocity_value[i*3+2] = solutionVelocityArray->GetComponent(i,2);
+                // outFile << "Node " << i << ": " << velocity_value[i*3] << " " << velocity_value[i*3+1] << " " << velocity_value[i*3+2] << std::endl;
+            }
+            // outFile.close();
+        }else{
+            std::cerr << "Solution array 'Velocity [m/s]' not found in the .vtu file!" << std::endl;
+            return;
+        }
+        
+    }
+}
 

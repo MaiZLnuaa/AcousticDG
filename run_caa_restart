@@ -1,0 +1,9 @@
+#!/bin/sh
+# echo "Clean results dir."
+# rm results/*
+# echo "Clean highorder_results dir."
+# rm highorder_results/*
+echo "Start computations"
+
+build/bin/dgalerkin doc/config/Gaussian2d.conf
+# build/bin/dgalerkin doc/config/Gaussian3d.conf

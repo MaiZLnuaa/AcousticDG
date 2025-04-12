@@ -45,38 +45,114 @@ int main(int argc, char **argv)
 
     Mesh mesh(config);
 
-    /**
-     * Initialize the solution:
-     */
-    std::vector<std::vector<double>> u(4, std::vector<double>(mesh.getNumNodes(), 0));
-    for (int i = 0; i < config.initConditions.size(); ++i)
-    {
-        double x = config.initConditions[i][1];
-        double y = config.initConditions[i][2];
-        double z = config.initConditions[i][3];
-        double size = config.initConditions[i][4];
-        double amp = config.initConditions[i][5];
+    int restartSimulation = config.restartSimulation;
 
+    if (restartSimulation == 1)
+    {
+        // std::string resartFileName = "highorder_results/result0.vtu";
+        std::string resartFileName = config.resartFileName;
+
+
+        std::vector<double> pressure_value;
+        // std::vector<std::vector<double>> velocity_value;
+        std::vector<double> velocity_value;
+        RestartSimulation::restartsimulation(resartFileName, pressure_value, velocity_value);
+
+        std::vector<std::vector<double>> u(4, std::vector<double>(mesh.getNumNodes(), 0));
+
+        
         for (int n = 0; n < mesh.getNumNodes(); n++)
         {
-            std::vector<double> coord, paramCoord;
-            int _dim, _tag;
-            gmsh::model::mesh::getNode(mesh.getElNodeTags()[n], coord, paramCoord, _dim, _tag);
-            u[0][n] += amp * exp(-((coord[0] - x) * (coord[0] - x) +
-                                   (coord[1] - y) * (coord[1] - y) +
-                                   (coord[2] - z) * (coord[2] - z)) /
-                                 size);
+            u[0][n] = pressure_value[mesh.getElNodeTags()[n]-1];
+            // u[1][n] = velocity_value[mesh.getElNodeTags()[n]][0];
+            // u[2][n] = velocity_value[mesh.getElNodeTags()[n]][1];
+            // u[3][n] = velocity_value[mesh.getElNodeTags()[n]][2];
+            u[1][n] = velocity_value[(mesh.getElNodeTags()[n]-1)*3];
+            u[2][n] = velocity_value[(mesh.getElNodeTags()[n]-1)*3 + 1];
+            u[3][n] = velocity_value[(mesh.getElNodeTags()[n]-1)*3 + 2];
         }
-    }
+            
 
-    /**
-     * Start solver
-     */
-    if (config.timeIntMethod == "Euler1")
-        solver::forwardEuler(u, mesh, config);
-    else if (config.timeIntMethod == "Runge-Kutta")
-        solver::rungeKutta(u, mesh, config);
-    else Fatal_Error("Time integration method error")    
+        /**
+        * Start solver
+        */
+        if (config.timeIntMethod == "Euler1")
+            solver::forwardEuler(u, mesh, config);
+        else if (config.timeIntMethod == "Runge-Kutta")
+            solver::rungeKutta(u, mesh, config);
+        else Fatal_Error("Time integration method error")    
+    }else
+    {
+        /**
+         * Initialize the solution:
+         */
+        std::vector<std::vector<double>> u(4, std::vector<double>(mesh.getNumNodes(), 0));
+        for (int i = 0; i < config.initConditions.size(); ++i)
+        {
+            double x = config.initConditions[i][1];
+            double y = config.initConditions[i][2];
+            double z = config.initConditions[i][3];
+            double size = config.initConditions[i][4];
+            double amp = config.initConditions[i][5];
+
+            for (int n = 0; n < mesh.getNumNodes(); n++)
+            {
+                std::vector<double> coord, paramCoord;
+                int _dim, _tag;
+                gmsh::model::mesh::getNode(mesh.getElNodeTags()[n], coord, paramCoord, _dim, _tag);
+                u[0][n] += amp * exp(-((coord[0] - x) * (coord[0] - x) +
+                                    (coord[1] - y) * (coord[1] - y) +
+                                    (coord[2] - z) * (coord[2] - z)) /
+                                    size);
+            }
+        }
+
+        /**
+        * Start solver
+        */
+        if (config.timeIntMethod == "Euler1")
+            solver::forwardEuler(u, mesh, config);
+        else if (config.timeIntMethod == "Runge-Kutta")
+            solver::rungeKutta(u, mesh, config);
+        else Fatal_Error("Time integration method error")    
+    }
+    
+
+
+    
+
+    // /**
+    //  * Initialize the solution:
+    //  */
+    // std::vector<std::vector<double>> u(4, std::vector<double>(mesh.getNumNodes(), 0));
+    // for (int i = 0; i < config.initConditions.size(); ++i)
+    // {
+    //     double x = config.initConditions[i][1];
+    //     double y = config.initConditions[i][2];
+    //     double z = config.initConditions[i][3];
+    //     double size = config.initConditions[i][4];
+    //     double amp = config.initConditions[i][5];
+
+    //     for (int n = 0; n < mesh.getNumNodes(); n++)
+    //     {
+    //         std::vector<double> coord, paramCoord;
+    //         int _dim, _tag;
+    //         gmsh::model::mesh::getNode(mesh.getElNodeTags()[n], coord, paramCoord, _dim, _tag);
+    //         u[0][n] += amp * exp(-((coord[0] - x) * (coord[0] - x) +
+    //                                (coord[1] - y) * (coord[1] - y) +
+    //                                (coord[2] - z) * (coord[2] - z)) /
+    //                              size);
+    //     }
+    // }
+
+    // /**
+    //  * Start solver
+    //  */
+    // if (config.timeIntMethod == "Euler1")
+    //     solver::forwardEuler(u, mesh, config);
+    // else if (config.timeIntMethod == "Runge-Kutta")
+    //     solver::rungeKutta(u, mesh, config);
+    // else Fatal_Error("Time integration method error")    
 
     // mesh.writePVD("results.pvd");
     mesh.writePVD_highOrder("results_highorder.pvd");

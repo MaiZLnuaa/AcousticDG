@@ -13,7 +13,7 @@ import vtk
 import numpy as np
 from scipy.interpolate import griddata
 
-mesh_file = "result1200_2d_23246_p2.vtu"
+mesh_file = "result0.vtu"
 
 # 读取原始 .vtu 文件
 mesh = meshio.read(mesh_file)
@@ -46,12 +46,26 @@ is_2D = np.allclose(z_values, z_values[0])  # 如果所有 z 值都相等，说�
 # 选择适当的坐标进行插值
 if is_2D:
     points = cell_centers[:, :2]  # 仅用 x, y
+    print("is 2D")
 else:
     points = cell_centers  # 直接使用 (x, y, z)
+    print("is 3D")
 
-# 获取某个标量场数据
-cell_data = data.GetCellData().GetArray("Pressure [Pa]")
-values = np.array([cell_data.GetValue(i) for i in range(cell_data.GetNumberOfTuples())])
+# # 获取某个标量场数据
+# cell_data = data.GetCellData().GetArray("Pressure [Pa]")
+# values = np.array([cell_data.GetValue(i) for i in range(cell_data.GetNumberOfTuples())])
+
+# 获取点数据
+point_data = data.GetPointData().GetArray("Pressure [Pa]")
+if point_data is None:
+    raise ValueError("❌ 找不到名为 'Pressure [Pa]' 的 PointData！")
+
+# 获取所有点坐标
+num_points = data.GetNumberOfPoints()
+points = np.array([data.GetPoint(i) for i in range(num_points)])
+
+# 获取对应数据值
+values = np.array([point_data.GetValue(i) for i in range(num_points)])
 
 # 生成更密集的网格
 if is_2D:
