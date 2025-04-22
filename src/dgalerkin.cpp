@@ -25,6 +25,8 @@ int main(int argc, char **argv)
     // s.algorithm_strategy = __gnu_parallel::force_parallel;
     // __gnu_parallel::_Settings::set(s);
 
+    auto start = std::chrono::system_clock::now();
+
     if (argc != 2)
     {
         return E2BIG;
@@ -176,12 +178,15 @@ int main(int argc, char **argv)
     gmsh::logger::write("Element dimension : " + std::to_string(m_elDim));
     gmsh::logger::write("Element Type : " + m_elName);
     gmsh::logger::write("Element Order : " + std::to_string(m_elOrder));
-    gmsh::logger::write("Element Nbr Nodes : " + std::to_string(m_elNumNodes));
                                      
     screen_display::write_string("Calculation finished", GREEN);
     
 
     gmsh::finalize();
+
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    screen_display::write_value("Total time:", elapsed.count() * 1.0e-6, "s", BLUE);
 
     return EXIT_SUCCESS;
 }

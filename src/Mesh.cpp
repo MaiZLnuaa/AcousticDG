@@ -131,15 +131,15 @@ Mesh::Mesh(Config config) : config(config)
                     for (int j = 0; j < m_elDim; ++j)
                     {
                         // screen_display::write_value("elJacobian(el, g, i, j)",elJacobian(el, g, i, j),"");
-                        jacobian[i * m_elDim + j] = elJacobian(el, g, i, j);
+                        jacobian[i * m_elDim + j] = elJacobian(el, g, i, j); // 单元el的积分点g的雅可比矩阵
                     }
                 }
 
                 // std::cout<<"el = "<<el<<" - g = "<<g<<" - f = "<<f<<std::endl;
                 // screen_display::write_value("elUGradBasisFct(g, f)",elUGradBasisFct(g, f),"",BLUE);
                 // screen_display::write_value("elGradBasisFct(el, g, f)",elGradBasisFct(el, g, f),"",BLUE);
-                std::copy(&elUGradBasisFct(g, f), &elUGradBasisFct(g, f) + m_elDim, &elGradBasisFct(el, g, f));
-                eigen::solve(jacobian.data(), &elGradBasisFct(el, g, f), m_elDim);
+                std::copy(&elUGradBasisFct(g, f), &elUGradBasisFct(g, f) + m_elDim, &elGradBasisFct(el, g, f)); // 复制 m_elUGradBasisFcts (积分点g的基函数导数(3个方向,如 [g1f1u, g1f1v, g1f1w]))到 m_elGradBasisFcts 
+                eigen::solve(jacobian.data(), &elGradBasisFct(el, g, f), m_elDim); // 求解 A * X = B, 得到 X, 赋值回 B. 即现在的 m_elGradBasisFcts 是物理坐标系下的基函数导数 [e1g1df1/dx, e1g1df1/dy, ..., e1g2df1/dx, e1g2df1/dy, ..., e1g1df2/dx, e1g1df2/dy, ...]
                 // screen_display::write_string("flag 1", RED);
             }
         }
@@ -187,7 +187,7 @@ Mesh::Mesh(Config config) : config(config)
     if (m_fDim < 2)
         gmsh::model::mesh::getElementEdgeNodes(m_elType[0], m_elFNodeTags, -1);  //获取二维单元的face（线）上的节点编号 m_elFNodeTags
     else
-        gmsh::model::mesh::getElementFaceNodes(m_elType[0], 3, m_elFNodeTags, -1);
+        gmsh::model::mesh::getElementFaceNodes(m_elType[0], 3, m_elFNodeTags, -1); // 获取三维单元的face（面）上的节点编号 m_elFNodeTags
 
     m_fNumPerEl = m_elFNodeTags.size() / (m_elNum * m_fNumNodes);  //每个单元的face个数  二维三角形单元的 m_fNumPerEl = 3
     end = std::chrono::system_clock::now();
@@ -611,16 +611,50 @@ Mesh::Mesh(Config config) : config(config)
         {
             for (int f = 0; f < m_fNum; ++f)
             {
-                if (m_fIsBoundary[f] && std::find(nodeTags.begin(), nodeTags.end(), fNodeTag(f)) != nodeTags.end())
-                    m_fBC[f] = 1;
+                // if (m_fIsBoundary[f] && std::find(nodeTags.begin(), nodeTags.end(), fNodeTag(f)) != nodeTags.end())
+                //     m_fBC[f] = 1;
+                if (m_fIsBoundary[f])
+                {
+                    int count = 0;
+                    for (int i = 0; i < m_fNumNodes; ++i)  // 遍历面 f 上的所有节点
+                    {
+                        size_t tag = fNodeTag(f, i);
+                        if (std::find(nodeTags.begin(), nodeTags.end(), tag) != nodeTags.end())
+                        {
+                            ++count;
+                            if (count >= m_fNumNodes)  
+                            {
+                                m_fBC[f] = (BCtype == "Reflecting") ? 1 : 0;
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         }
         else
         {
             for (int f = 0; f < m_fNum; ++f)
             {
-                if (m_fIsBoundary[f] && std::find(nodeTags.begin(), nodeTags.end(), fNodeTag(f)) != nodeTags.end())
-                    m_fBC[f] = 0;
+                // if (m_fIsBoundary[f] && std::find(nodeTags.begin(), nodeTags.end(), fNodeTag(f)) != nodeTags.end())
+                //     m_fBC[f] = 0;
+                if (m_fIsBoundary[f])
+                {
+                    int count = 0;
+                    for (int i = 0; i < m_fNumNodes; ++i)  // 遍历面 f 上的所有节点
+                    {
+                        size_t tag = fNodeTag(f, i);
+                        if (std::find(nodeTags.begin(), nodeTags.end(), tag) != nodeTags.end())
+                        {
+                            ++count;
+                            if (count >= m_fNumNodes)  
+                            {
+                                m_fBC[f] = (BCtype == "Absorbing") ? 0 : 0;
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -721,6 +755,14 @@ void Mesh::precomputeMassMatrix()
 
 /**
  * Compute the element mass matrix.
+ * 
+ * Compute the element mass matrix M_ij for element `el`, defined as:
+ *
+ * M_{ij} = \sum_g ( \phi_i(g)  \phi_j(g)  \omega_g  detJ_g )
+ *
+ * - phi_i(g)    : basis function i evaluated at integration point g
+ * - weight_g    : quadrature weight at g
+ * - detJ_g      : determinant of Jacobian at g
  *
  * @param el integer : element id (!= gmsh tag, it is the location in memory storage)
  * @param inverse boolean : Whether or not the mass matrix must be inverted before returned
@@ -746,6 +788,8 @@ void Mesh::getElMassMatrix(const size_t el, const bool inverse, double *elMassMa
 
 /**
  * Compute the element stiffness/convection matrix.
+ * 
+ * S_k = \sum_g\nabla \phi_g \cdot f(q) \phi_g \omega_g det J_g
  *
  * @param el integer : element id
  * @param Flux double array : physical flux
@@ -765,7 +809,7 @@ void Mesh::getElStiffVector(const size_t el, std::vector<std::vector<double>> &F
             for (int g = 0; g < m_elNumIntPts; g++)
             {
                 elStiffVector[i] += eigen::dot(Flux[jId].data(), &elGradBasisFct(el, g, i), m_Dim) *
-                                    elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g);
+                                    elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g); // 第 el 个单元的刚度矩阵 S_k. (单元内所有节点的刚度矩阵之和,其实是一个 m_elNumNodes * 1 的向量 )
             }
         }
     }

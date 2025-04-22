@@ -1,5 +1,5 @@
-lc = 6;
-half = 50;
+lc = 4;
+half = 20;
 // 定义立方体的 8 个顶点
 Point(1) = {-half, -half, -half, lc};
 Point(2) = { half, -half, -half, lc};

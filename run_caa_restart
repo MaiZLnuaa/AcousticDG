@@ -5,5 +5,5 @@
 # rm highorder_results/*
 echo "Start computations"
 
-build/bin/dgalerkin doc/config/Gaussian2d.conf
-# build/bin/dgalerkin doc/config/Gaussian3d.conf
+# build/bin/dgalerkin doc/config/Gaussian2d.conf
+build/bin/dgalerkin doc/config/Gaussian3d.conf

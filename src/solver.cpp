@@ -48,10 +48,10 @@ namespace solver
             {
 
                 mesh.getElFlux(el, elFlux.data());
-                mesh.getElStiffVector(el, Flux[eq], u[eq], elStiffvector.data());
-                eigen::minus(elStiffvector.data(), elFlux.data(), elNumNodes);
+                mesh.getElStiffVector(el, Flux[eq], u[eq], elStiffvector.data()); // 获得 S_k
+                eigen::minus(elStiffvector.data(), elFlux.data(), elNumNodes); // S_k - F_k
                 eigen::linEq(&mesh.elMassMatrix(el), &elStiffvector[0], &u[eq][el * elNumNodes],
-                             config.timeStep, beta, elNumNodes);
+                             config.timeStep, beta, elNumNodes); // 求 u[t+1] = beta * u[t] + dt * M^-1 * (S_k - F_k)
             }
         }
     }
@@ -490,6 +490,20 @@ namespace solver
 
             /**
              * Fourth order Runge-Kutta algorithm
+             * u ──> [k1] ──┐
+             *             ├─> k2 = u + 0.5*k1 ──┐
+             *             │                    ├─> k3 = u + 0.5*k2 ──┐
+             *             │                    │                    ├─> k4 = u + 1.0*k3 ──┐
+             *             │                    │                    │                     │       
+             *             ▼                    ▼                    ▼                     ▼
+             *          numStep              numStep              numStep               numStep
+             *             │                    │                    │                    │
+             *             ▼                    ▼                    ▼                    ▼
+             *          Flux[k1]            Flux[k2]            Flux[k3]              Flux[k4]
+             *             │                    │                    │                    │
+             *             └──────┬─────────────┴────────────────────┴────────────────────┘
+             *                    ▼
+             *          u += (k1 + 2*k2 + 2*k3 + k4)/6
              */
             k1 = k2 = k3 = k4 = u;
             /** [1] Step R-K */
