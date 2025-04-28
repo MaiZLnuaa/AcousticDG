@@ -1,5 +1,5 @@
-lc = 4;
-half = 20;
+lc = 6.0;
+half = 50;
 // 定义立方体的 8 个顶点
 Point(1) = {-half, -half, -half, lc};
 Point(2) = { half, -half, -half, lc};
@@ -47,3 +47,4 @@ Physical Volume("Domain") = {26};
 
 
 Mesh.ElementOrder = 3;  // 生成四阶网格 
+Mesh.HighOrderOptimize = 1;

@@ -377,8 +377,8 @@ Mesh::Mesh(Config config) : config(config)
     // std::cout << "size: " << m_fNormals.size() << std::endl;
     // print_vector(m_fNormals);
 
-    if (m_elDim == 3 && m_elOrder != 1)
-        fc = -1;
+    // if (m_elDim == 3 && m_elOrder != 1)
+    //     fc = -1;
 
     screen_display::write_if_false(m_elFNodeTags.size() == m_elNum * m_fNumPerEl * m_fNumNodes, "m_elFNodeTags size error");
     screen_display::write_if_false(m_fJacobianDets.size() == m_fNum * m_fNumIntPts, "m_fJacobianDets size error");
@@ -518,7 +518,7 @@ Mesh::Mesh(Config config) : config(config)
             if (elFId(fNbrElId(f, 0), lf) == f)
                 elf = lf;
         }
-        if (m_fNbrElIds.size() == 2)
+        if (m_fNbrElIds[f].size() == 2)
         {
             if (elFOrientation(fNbrElId(f, 0), elf) <= 0)
             {

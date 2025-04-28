@@ -1,5 +1,5 @@
-lc = 2.0;
-half = 10.0;
+lc = 5.0;
+half = 50.0;
 Point(1) = {-half, -half, 0, lc};
 Point(2) = { half, -half, 0, lc};
 Point(3) = { half,  half, 0, lc};
@@ -22,6 +22,6 @@ Physical Curve("Absorbing") = {3, 4};
 // 计算域
 Physical Surface("Domain") = {1};
 
-Mesh.ElementOrder = 2;  // 生成四阶网格
+Mesh.ElementOrder = 4;  // 生成四阶网格
 
 Mesh 2;
