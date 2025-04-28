@@ -1334,18 +1334,20 @@ void Mesh::writeVTUb_highOrder(std::string filename, std::vector<std::vector<dou
 {
     screen_display::write_string("Write High-Order VTU: " + filename, BOLDGREEN);
 
+    // 从 Gmsh 获取所有节点的编号和坐标
     std::vector<size_t> node_tag;
     std::vector<double> coord_tmp, param_coord_tmp;
     gmsh::model::mesh::getNodes(node_tag, coord_tmp, param_coord_tmp);
 
-    size_t numNodes = node_tag.size();
+    size_t numNodes = node_tag.size(); // 节点总数
     // std::cout << "numNodes: " << numNodes << std::endl;
 
-    vtkNew<vtkPoints> points;
-    vtkNew<vtkCellArray> cellArray;
-    vtkNew<vtkDoubleArray> pressure, density, velocity;
-    vtkNew<vtkUnstructuredGrid> unstructuredGrid;
-    vtkNew<vtkXMLUnstructuredGridWriter> writer;
+    // 创建 VTK 所需的对象
+    vtkNew<vtkPoints> points;                               // 所有节点坐标
+    vtkNew<vtkCellArray> cellArray;                         // 所有单元
+    vtkNew<vtkDoubleArray> pressure, density, velocity;     // 物理量
+    vtkNew<vtkUnstructuredGrid> unstructuredGrid;           // 非结构化网格
+    vtkNew<vtkXMLUnstructuredGridWriter> writer;            // 写 .vtu文件
 
     for (size_t i = 0; i < numNodes; ++i)
     {
@@ -1354,16 +1356,16 @@ void Mesh::writeVTUb_highOrder(std::string filename, std::vector<std::vector<dou
     }
 
 
-    size_t elNumNodes = getElNumNodes(); // 高阶单元节点数，比如二阶三角形是6
+    // size_t elNumNodes = getElNumNodes(); // 高阶单元节点数，比如二阶三角形是6
     // std::cout << coord_tmp.size() << std::endl;
     // std::cout << "elNumNodes: " << elNumNodes << std::endl;
     // std::cout << "m_elDim: " << m_elDim << std::endl;
     
-    for (size_t el = 0; el < getElNum(); ++el)
+    for (size_t el = 0; el < m_elNum; ++el)
     {
         // 构造 Gmsh 节点编号
-        std::vector<size_t> node_tags_gmsh(elNumNodes);
-        for (size_t j = 0; j < elNumNodes; ++j)
+        std::vector<size_t> node_tags_gmsh(m_elNumNodes);
+        for (size_t j = 0; j < m_elNumNodes; ++j)
         {
             node_tags_gmsh[j] = elNodeTag(el, j);
         }
@@ -1373,9 +1375,9 @@ void Mesh::writeVTUb_highOrder(std::string filename, std::vector<std::vector<dou
         if (m_elDim == 2)
         {
             vtkNew<vtkLagrangeTriangle> tri;
-            tri->GetPointIds()->SetNumberOfIds(elNumNodes);
+            tri->GetPointIds()->SetNumberOfIds(m_elNumNodes);
             
-            for (size_t j = 0; j < elNumNodes; ++j)
+            for (size_t j = 0; j < m_elNumNodes; ++j)
             {
                 tri->GetPointIds()->SetId(j, node_tags_vtk[j]-1);
             }
@@ -1385,9 +1387,9 @@ void Mesh::writeVTUb_highOrder(std::string filename, std::vector<std::vector<dou
         else if (m_elDim == 3)
         {
             vtkNew<vtkLagrangeTetra> tetra;
-            tetra->GetPointIds()->SetNumberOfIds(elNumNodes);
+            tetra->GetPointIds()->SetNumberOfIds(m_elNumNodes);
 
-            for (size_t j = 0; j < elNumNodes; ++j)
+            for (size_t j = 0; j < m_elNumNodes; ++j)
             {
                 tetra->GetPointIds()->SetId(j, node_tags_vtk[j]-1);
             }
@@ -1415,11 +1417,11 @@ void Mesh::writeVTUb_highOrder(std::string filename, std::vector<std::vector<dou
     std::vector<double> vz_node(numNodes, 0.0);
     std::vector<int> count_node(numNodes, 0);
 
-    for (size_t el = 0; el < getElNum(); ++el)
+    for (size_t el = 0; el < m_elNum; ++el)
     {
-        for (size_t n = 0; n < getElNumNodes(); ++n)
+        for (size_t n = 0; n < m_elNumNodes; ++n)
         {
-            size_t elN = el * getElNumNodes() + n;
+            size_t elN = el * m_elNumNodes + n;
             size_t global_node = elNodeTag(el, n) - 1;  // 假设节点编号是从1开始的
 
             p_node[global_node]   += u[0][elN];

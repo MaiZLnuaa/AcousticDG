@@ -4,7 +4,7 @@
 #  @Author        MaiZLnuaa <mai-zl@nuaa.edu.cn>
 #  @Date          Mon Apr 14 2025 10:48:49
 #
-#  @Description   python post_processing.py / python post_processing.py --method rbf / python post_processing.py --input result0.vtu --method rbf
+#  @Description   python Mesh_refinement_visualization.py / python Mesh_refinement_visualization.py --method rbf / python Mesh_refinement_visualization.py --input result0.vtu --method rbf
 
 
 import argparse
@@ -17,9 +17,11 @@ from scipy.interpolate import griddata, RBFInterpolator
 parser = argparse.ArgumentParser(description="Interpolate .vtu data to a denser grid.")
 parser.add_argument("--method", choices=["linear", "cubic", "nearest", "rbf"], default="nearest", help="Interpolation method to use")
 parser.add_argument("--input", default="result0.vtu", help="Input VTU file")
+parser.add_argument("--output", default="new_result0.vtu", help="Output VTU file")
 args = parser.parse_args()
 
 mesh_file = args.input
+output_mesh_file = args.output
 interp_method = args.method
 
 # Step 1: 读取 .vtu 文件并转为未压缩格式
@@ -52,7 +54,7 @@ if is_2D:
 else:
     xmin, ymin, zmin = points.min(axis=0)
     xmax, ymax, zmax = points.max(axis=0)
-    grid_x, grid_y, grid_z = np.mgrid[xmin:xmax:200j, ymin:ymax:200j, zmin:zmax:200j]
+    grid_x, grid_y, grid_z = np.mgrid[xmin:xmax:500j, ymin:ymax:500j, zmin:zmax:500j]
     interp_points = np.stack([grid_x.ravel(), grid_y.ravel(), grid_z.ravel()], axis=-1)
 
 # Step 4: 插值方法选择
@@ -126,8 +128,8 @@ output_grid.SetCells(9 if is_2D else 12, new_cells)
 output_grid.GetPointData().AddArray(pressure_array)
 
 writer = vtk.vtkXMLUnstructuredGridWriter()
-writer.SetFileName("new_" + mesh_file)
+writer.SetFileName(output_mesh_file)
 writer.SetInputData(output_grid)
 writer.Write()
 
-print(f"✅ 插值完成，输出文件为 new_{mesh_file}")
+print(f"✅ 插值完成，输出文件为 {output_mesh_file}")
