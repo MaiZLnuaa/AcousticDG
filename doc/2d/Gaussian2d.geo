@@ -1,5 +1,5 @@
-lc = 2.5;
-half = 50.0;
+lc = 4.0;
+half = 20.0;
 Point(1) = {-half, -half, 0, lc};
 Point(2) = { half, -half, 0, lc};
 Point(3) = { half,  half, 0, lc};
