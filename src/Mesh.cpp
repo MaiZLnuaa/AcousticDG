@@ -219,8 +219,8 @@ Mesh::Mesh(Config config) : config(config)
 
     gmsh::model::mesh::addElementsByType(m_fEntity, m_fType, {}, m_fNodeTags);  //将face节点编号添加到新的gmsh实体中
 
-    m_fIntType = m_elIntType;
-    // m_fIntType = "Gauss" + std::to_string(2 * m_elOrder + 1);
+    // m_fIntType = m_elIntType;
+    m_fIntType = "Gauss" + std::to_string(2 * m_elOrder + 1);
 
     gmsh::model::mesh::getIntegrationPoints(m_fType, m_fIntType, m_fIntParamCoords, m_fWeight);  //获得面的积分点坐标和权重
 
@@ -235,8 +235,8 @@ Mesh::Mesh(Config config) : config(config)
      */
     screen_display::write_string("Faces - Compute Jacobian");
     start = std::chrono::system_clock::now();
-    m_fIntType = m_elIntType;
-    // m_fIntType = "Gauss" + std::to_string(2 * m_elOrder + 1);
+    // m_fIntType = m_elIntType;
+    m_fIntType = "Gauss" + std::to_string(2 * m_elOrder + 1);
 
     gmsh::model::mesh::getBasisFunctions(m_fType, m_fIntParamCoords, config.elementType, *new int, m_fBasisFcts, _numOrientations);
 
