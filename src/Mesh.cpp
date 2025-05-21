@@ -877,6 +877,88 @@ void Mesh::precomputeFlux(std::vector<double> &u, std::vector<std::vector<double
     }
 }
 
+
+/**
+ * New Precompute the numerical flux through all the faces. The flux implemented is
+ * the Rusanov Flux. Also note that the following code is paralelized using openMP.
+ *
+ * @param Flux double array : physical flux
+ * @param u double array : solution at the node
+ * @param eq : equation id (0 = pressure, 1 = velocity x, 2= vy, 3= vz)
+ */
+void Mesh::newprecomputeFlux(std::vector<double> &u, std::vector<std::vector<double>> &Flux, int eq,
+                                const std::vector<double>& vx,                            // 所有节点上的 vx
+                                const std::vector<double>& vy,                            // 所有节点上的 vy
+                                const std::vector<double>& vz                             // 所有节点上的 vz
+                            )
+{
+
+#pragma omp parallel num_threads(config.numThreads)
+    {
+        // Memory allocation (Cross-plateform compatibility)
+        size_t elUp, elDn;
+        std::vector<double> FIntPts(m_fNumIntPts, 0);
+        std::vector<double> Fnum(m_Dim, 0);
+
+#pragma omp parallel for schedule(static)
+        for (int f = 0; f < m_fNum; ++f)
+        {
+
+            std::fill(FIntPts.begin(), FIntPts.end(), 0);
+
+            // Numerical Flux at Integration points
+            if (m_fIsBoundary[f])
+            {
+                for (int g = 0; g < m_fNumIntPts; ++g)
+                    FIntPts[g] = FluxGhost[eq][f * m_fNumIntPts + g][0];
+            }
+            else
+            {
+                for (int i = 0; i < m_fNumNodes; ++i)
+                {
+                    elUp = fNbrElId(f, 0) * m_elNumNodes + fNToElNId(f, i, 0);
+                    elDn = fNbrElId(f, 1) * m_elNumNodes + fNToElNId(f, i, 1);
+
+                    for (int g = 0; g < m_fNumIntPts; ++g)
+                    {
+                        double nx = fNormal(f, g, 0);
+                        double ny = fNormal(f, g, 1);
+                        double nz = fNormal(f, g, 2);
+
+                        double vx_up = vx[elUp], vy_up = vy[elUp], vz_up = vz[elUp];
+                        double vx_dn = vx[elDn], vy_dn = vy[elDn], vz_dn = vz[elDn];
+
+                        double vn_up = vx_up * nx + vy_up * ny + vz_up * nz;
+                        double vn_dn = vx_dn * nx + vy_dn * ny + vz_dn * nz;
+
+
+                        double lambda = std::max(std::abs(vn_up), std::abs(vn_dn)) + config.c0;
+
+                        for (int x = 0; x < m_Dim; ++x)
+                            Fnum[x] = 0.5 * ((Flux[elUp][x] + Flux[elDn][x]) + lambda * fNormal(f, g, x) * (u[elUp] - u[elDn]));
+/////////////////////////
+#pragma omp atomic update
+                        FIntPts[g] += eigen::dot(&fNormal(f, g), Fnum.data(), m_Dim) * fBasisFct(g, i);
+                    }
+                }
+            }
+
+            // Surface integral
+            for (int n = 0; n < m_fNumNodes; ++n)
+            {
+                fFlux(f, n) = 0;
+                for (int g = 0; g < m_fNumIntPts; ++g)
+                {
+////////////////////////
+#pragma omp atomic update
+                    fFlux(f, n) += m_fWeight[g] * fBasisFct(g, n) * FIntPts[g] * fJacobianDet(f, g);
+                }
+            }
+        }
+    }
+}
+
+
 /**
  * Compute flux through a given element from
  * the value of the flux at the face.

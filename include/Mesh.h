@@ -221,6 +221,12 @@ public:
 
     void writePVD_highOrder(std::string filename);
 
+    void newprecomputeFlux(std::vector<double> &u, std::vector<std::vector<double>> &Flux, int eq, 
+                            const std::vector<double>& vx,                            // 所有节点上的 vx
+                            const std::vector<double>& vy,                            // 所有节点上的 vy
+                            const std::vector<double>& vz                             // 所有节点上的 vz
+                            );
+
     /** 
      * debug std::vector<T> &vector
      * print_vector(m_elFNodeTagsOrdered);

@@ -41,7 +41,8 @@ namespace solver
 
         for (int eq = 0; eq < 4; ++eq)
         {
-            mesh.precomputeFlux(u[eq], Flux[eq], eq);
+            // mesh.precomputeFlux(u[eq], Flux[eq], eq);
+            mesh.newprecomputeFlux(u[eq], Flux[eq], eq, u[1], u[2], u[3]);
 
 #pragma omp parallel for schedule(static) firstprivate(elFlux, elStiffvector) num_threads(config.numThreads)
             for (int el = 0; el < mesh.getElNum(); ++el)
