@@ -138,6 +138,8 @@ namespace eigen
 
     void linEq(double *A, double *X, double *Y, double &alpha, double beta, int &N);
 
+    void add(double *A, double *B, int N);
+
     void minus(double *A, double *B, int N);
 
     void plus(double *A, double *B, int N);

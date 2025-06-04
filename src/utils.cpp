@@ -429,6 +429,13 @@ namespace eigen
         return A_eigen.dot(B_eigen);
     }
 
+    void add(double *A, double *B, int N)
+    {
+        Eigen::Map<Eigen::VectorXd> A_eigen(A, N);
+        Eigen::Map<Eigen::VectorXd> B_eigen(B, N);
+        A_eigen += B_eigen;
+}
+
     void minus(double *A, double *B, int N)
     {
         Eigen::Map<Eigen::VectorXd> A_eigen(A, N);

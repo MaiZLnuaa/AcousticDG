@@ -9,6 +9,8 @@
 #include "Mesh.h"
 #include "configParser.h"
 
+#include "Sources.h"
+
 namespace solver
 {
 
@@ -360,6 +362,9 @@ namespace solver
             }
             srcIndices.push_back(indice);
         }
+        // std::vector<std::vector<int>> srcIndices;
+        // for (auto& src : config.sources)
+        //     srcIndices.push_back(sources::findSourceNodesForOne(mesh, src));
 
         /** Observer */
         std::vector<std::vector<int>> obsIndices;
@@ -488,6 +493,8 @@ namespace solver
                     }
                 }
             }
+            // for (int i = 0; i < config.sources.size(); ++i)
+            //     sources::applySourceForOne(u, srcIndices[i], config.sources[i], t);
 
             /**
              * Fourth order Runge-Kutta algorithm

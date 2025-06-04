@@ -1,19 +1,22 @@
-SET(SRCS
-	dgalerkin.cpp
-	configParser.cpp
-	Mesh.cpp
-	utils.cpp
-	solver.cpp
-	eqEdit.cpp
-	fft.cpp
-	../include/configParser.h
-	../include/Mesh.h
-	../include/utils.h
-	../include/solver.h
-	../include/eqEdit.h
-	../include/fft.h
+# SET(SRCS
+# 	dgalerkin.cpp
+# 	configParser.cpp
+# 	Mesh.cpp
+# 	utils.cpp
+# 	solver.cpp
+# 	eqEdit.cpp
+# 	fft.cpp
+# 	../include/configParser.h
+# 	../include/Mesh.h
+# 	../include/utils.h
+# 	../include/solver.h
+# 	../include/eqEdit.h
+# 	../include/fft.h
+# )
+file(GLOB_RECURSE SRCS
+    "${CMAKE_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_SOURCE_DIR}/include/*.h"
 )
-
 # 设置构建类型为 Release（开启 O3）
 # set(CMAKE_BUILD_TYPE Release)
 

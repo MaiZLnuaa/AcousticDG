@@ -597,7 +597,7 @@ Mesh::Mesh(Config config) : config(config)
      * 2        : Absorbing
      * Default  : Absorbing (!= 1 or 2)
      */
-    m_fBC.resize(m_fNum);
+    m_fBC.resize(m_fNum, 100);
     std::vector<size_t> nodeTags;
     std::vector<double> coord;
     for (auto const &physBC : config.physBCs)

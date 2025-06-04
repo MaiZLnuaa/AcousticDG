@@ -14,10 +14,10 @@ Line Loop(1) = {1, 2, 3, 4};
 Plane Surface(1) = {1};
 
 // 物面边界（Reflecting）：下边界（1）+ 右边界（2）
-Physical Curve("Reflecting") = {1};
+//Physical Curve("Reflecting") = {1};
 
 // 远场边界（Absorbing）：左边界（4）+ 上边界（3）
-Physical Curve("Absorbing") = {2, 3, 4};
+Physical Curve("Absorbing") = {1, 2, 3, 4};
 
 // 计算域
 Physical Surface("Domain") = {1};
