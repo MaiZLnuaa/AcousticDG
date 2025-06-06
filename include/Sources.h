@@ -20,4 +20,7 @@ namespace sources
                         const std::vector<int>& nodeIndices,
                         Sources& source,
                         double t);
+
+    void getElSourceVector(Config &config, Mesh &mesh, int eq, int el, double* elSourceVector, double t, const std::vector<std::vector<int>> &srcIndices);
+    
 } // namespace sources

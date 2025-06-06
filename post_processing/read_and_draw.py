@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 import os
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
-# mesh_file = os.path.join(this_dir, "result2700.vtu")
-mesh_file = os.path.join(this_dir, "..", "highorder_results", "result2700.vtu")
+# mesh_file = os.path.join(this_dir, "result1000.vtu")
+mesh_file = os.path.join(this_dir, "..", "highorder_results", "result1200.vtu")
 mesh = pv.read(mesh_file)
 
 
@@ -55,7 +55,7 @@ data_name = "Pressure [Pa]"
 # xmin, xmax = mesh.bounds[0], mesh.bounds[1]
 n_samples = 2000
 
-interp = mesh.sample_over_line(pointa=(-100, 0, 0), pointb=(100, 0, 0), resolution=n_samples - 1)
+interp = mesh.sample_over_line(pointa=(-50, 0, 0), pointb=(50, 0, 0), resolution=n_samples - 1)
 
 x_samples = interp.points[:, 0]
 # r_samples = np.sqrt(interp.points[:, 0]**2 + (interp.points[:, 1]+100)**2)
@@ -81,10 +81,10 @@ y_txt = txt_data[:, 1]
 
 plt.plot()
 plt.plot(x_samples, y_values, label="Numerical(LEE)", color="blue")
-plt.plot(x_txt, y_txt, label="Analytical", color="red", linestyle="dashed")
+# plt.plot(x_txt, y_txt, label="Analytical", color="red", linestyle="dashed")
 # plt.xlim([xmin, xmax])
 # plt.xlim([-50, np.max(x_samples)])
-plt.ylim([-0.4,0.3])
+# plt.ylim([-0.4,0.3])
 plt.xlabel("X")
 plt.ylabel(data_name)
 plt.title(f"{data_name} along X axis")

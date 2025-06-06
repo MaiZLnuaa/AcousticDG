@@ -192,6 +192,14 @@ public:
     {
         return m_elNodeTags;
     }
+    int getElNumIntPts()
+    {
+        return m_elNumIntPts;
+    }
+    double getElWeight(int g)
+    {
+        return m_elWeight[g];
+    }
 
     /**
      * Matrices and vectors assembly

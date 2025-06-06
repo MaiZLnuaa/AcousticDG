@@ -27,6 +27,8 @@ namespace solver
 
     std::vector<std::vector<float>> data4wave;
 
+    std::vector<double> elSourceVector;
+
     /**
      * Perform a numerical step: u[t+1] = dt*M^-1*(S[u[t]]-F[u[t]]) + beta*u[t]
      * for all elements in mesh object.
@@ -59,6 +61,29 @@ namespace solver
         }
     }
 
+    void sourcenumStep(Mesh &mesh, Config config, std::vector<std::vector<double>> &u,
+                 std::vector<std::vector<std::vector<double>>> &Flux, double beta, double t, std::vector<std::vector<int>> srcIndices)
+    {
+
+        for (int eq = 0; eq < 4; ++eq)
+        {
+            // mesh.precomputeFlux(u[eq], Flux[eq], eq);
+            mesh.newprecomputeFlux(u[eq], Flux[eq], eq, u[1], u[2], u[3]);
+
+#pragma omp parallel for schedule(static) firstprivate(elFlux, elStiffvector, elSourceVector) num_threads(config.numThreads)
+            for (int el = 0; el < mesh.getElNum(); ++el)
+            {
+
+                mesh.getElFlux(el, elFlux.data());
+                mesh.getElStiffVector(el, Flux[eq], u[eq], elStiffvector.data()); // 获得 S_k
+                sources::getElSourceVector(config, mesh, eq, el, elSourceVector.data(), t, srcIndices);
+                eigen::minus(elStiffvector.data(), elFlux.data(), elNumNodes); // S_k - F_k
+                eigen::plus(elStiffvector.data(),elSourceVector.data(),elNumNodes);
+                eigen::linEq(&mesh.elMassMatrix(el), &elStiffvector[0], &u[eq][el * elNumNodes],
+                             config.timeStep, beta, elNumNodes); // 求 u[t+1] = beta * u[t] + dt * M^-1 * (S_k - F_k)
+            }
+        }
+    }
     /**
      * Solve using forward explicit scheme. O(h)
      *
@@ -323,6 +348,7 @@ namespace solver
         elTags = std::vector<int>(&mesh.elTag(0), &mesh.elTag(0) + mesh.getElNum());
         elFlux.resize(elNumNodes);
         elStiffvector.resize(elNumNodes);
+        elSourceVector.resize(elNumNodes);
         std::vector<std::vector<double>> k1, k2, k3, k4;
         Flux = std::vector<std::vector<std::vector<double>>>(4,
                                                              std::vector<std::vector<double>>(mesh.getNumNodes(),
@@ -517,21 +543,25 @@ namespace solver
             /** [1] Step R-K */
             mesh.updateFlux(k1, Flux, config.v0, config.c0, config.rho0);
             numStep(mesh, config, k1, Flux, 0);
+            // sourcenumStep(mesh, config, k1, Flux, 0, t, srcIndices);
             for (int eq = 0; eq < u.size(); ++eq)
                 eigen::plusTimes(k2[eq].data(), k1[eq].data(), 0.5, numNodes);
             /** [2] Step R-K */
             mesh.updateFlux(k2, Flux, config.v0, config.c0, config.rho0);
             numStep(mesh, config, k2, Flux, 0);
+            // sourcenumStep(mesh, config, k2, Flux, 0, t, srcIndices);
             for (int eq = 0; eq < u.size(); ++eq)
                 eigen::plusTimes(k3[eq].data(), k2[eq].data(), 0.5, numNodes);
             /** [3] Step R-K */
             mesh.updateFlux(k3, Flux, config.v0, config.c0, config.rho0);
             numStep(mesh, config, k3, Flux, 0);
+            // sourcenumStep(mesh, config, k3, Flux, 0, t, srcIndices);
             for (int eq = 0; eq < u.size(); ++eq)
                 eigen::plusTimes(k4[eq].data(), k3[eq].data(), 1, numNodes);
             /** [4] Step R-K */
             mesh.updateFlux(k4, Flux, config.v0, config.c0, config.rho0);
             numStep(mesh, config, k4, Flux, 0);
+            // sourcenumStep(mesh, config, k4, Flux, 0, t, srcIndices);
             /** Concat results of R-K iterations */
             // #pragma omp parallel for
             for (int eq = 0; eq < u.size(); ++eq)

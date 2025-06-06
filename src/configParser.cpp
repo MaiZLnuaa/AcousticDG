@@ -108,9 +108,23 @@ namespace config
                             config.sources.push_back(S3);
                             config.sources.push_back(S4);
                         }
-                        else //! monopole
+                        else if (sep[0] == "monopole") //! monopole
                         {
                             pole = 0;
+
+                            Sources S("", {pole, x, y, z, size, amp, freq, phase, duration});
+                            config.sources.push_back(S);
+                        }
+                        else if (sep[0] == "dipolesource")
+                        {
+                            pole = 1;
+
+                            Sources S("", {pole, x, y, z, size, amp, freq, phase, duration});
+                            config.sources.push_back(S);
+                        }
+                        else if (sep[0] == "quadrupolesource")
+                        {
+                            pole = 2;
 
                             Sources S("", {pole, x, y, z, size, amp, freq, phase, duration});
                             config.sources.push_back(S);
