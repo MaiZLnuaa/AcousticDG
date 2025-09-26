@@ -1,6 +1,6 @@
 #!/bin/sh
-# echo "Clean results dir."
-# rm results/*
+echo "Clean results dir."
+rm results/*
 echo "Clean highorder_results dir."
 rm highorder_results/*
 echo "Start computations"

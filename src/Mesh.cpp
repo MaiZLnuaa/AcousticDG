@@ -687,7 +687,7 @@ Mesh::Mesh(Config config) : config(config)
                 double c0(config.c0), rho0(config.rho0);
                 double vx0(config.v0[0]), vy0(config.v0[1]), vz0(config.v0[2]);
                 double vn0 = vx0 * nx + vy0 * ny + vz0 * nz;
-                double lambda = (vn0 < 0) ? 0 : -1; // FIXME: Warning: lambda=-1 and not 1, this work but there is probably a bug in the code
+                double lambda = (vn0 < 0) ? 0 : 1; // FIXME: Warning: lambda=-1 and not 1, this work but there is probably a bug in the code
                                                     // (pre-processing)...
 
                 // double L1(fabs(vn0-c0)), L2(fabs(vn0+c0)), L3(fabs(vn0-c0));
@@ -697,25 +697,67 @@ Mesh::Mesh(Config config) : config(config)
 
                 RKR[i].resize(16);
 
-                RKR[i][0] = 0.25 * (c0 + vn0);
-                RKR[i][1] = 0.25 * (c0 * rho0 * (c0 + vn0) * nx);
-                RKR[i][2] = 0.25 * (c0 * rho0 * (c0 + vn0) * ny);
-                RKR[i][3] = 0.25 * (c0 * rho0 * (c0 + vn0) * nz);
+                // RKR[i][0] = 0.25 * (c0 + vn0);
+                // RKR[i][1] = 0.25 * (c0 * rho0 * (c0 + vn0) * nx);
+                // RKR[i][2] = 0.25 * (c0 * rho0 * (c0 + vn0) * ny);
+                // RKR[i][3] = 0.25 * (c0 * rho0 * (c0 + vn0) * nz);
 
-                RKR[i][4] = 0.25 * (nx * (c0 + vn0) / (rho0 * c0));
-                RKR[i][5] = 0.25 * ((c0 + vn0) * nx * nx - vn0 * lambda * (tx * tx + sx * sx));
-                RKR[i][6] = 0.25 * ((c0 + vn0) * nx * ny - vn0 * lambda * (ty * tx + sy * sx));
-                RKR[i][7] = 0.25 * ((c0 + vn0) * nx * nz - vn0 * lambda * (tz * tx + sz * sx));
+                // RKR[i][4] = 0.25 * (nx * (c0 + vn0) / (rho0 * c0));
+                // RKR[i][5] = 0.25 * ((c0 + vn0) * nx * nx - vn0 * lambda * (tx * tx + sx * sx));
+                // RKR[i][6] = 0.25 * ((c0 + vn0) * nx * ny - vn0 * lambda * (ty * tx + sy * sx));
+                // RKR[i][7] = 0.25 * ((c0 + vn0) * nx * nz - vn0 * lambda * (tz * tx + sz * sx));
 
-                RKR[i][8] = 0.25 * (ny * (c0 + vn0) / (rho0 * c0));
-                RKR[i][9] = 0.25 * ((c0 + vn0) * ny * nx - vn0 * lambda * (tx * ty + sx * sy));
-                RKR[i][10] = 0.25 * ((c0 + vn0) * ny * ny - vn0 * lambda * (ty * ty + sy * sy));
-                RKR[i][11] = 0.25 * ((c0 + vn0) * ny * nz - vn0 * lambda * (tz * ty + sz * sy));
+                // RKR[i][8] = 0.25 * (ny * (c0 + vn0) / (rho0 * c0));
+                // RKR[i][9] = 0.25 * ((c0 + vn0) * ny * nx - vn0 * lambda * (tx * ty + sx * sy));
+                // RKR[i][10] = 0.25 * ((c0 + vn0) * ny * ny - vn0 * lambda * (ty * ty + sy * sy));
+                // RKR[i][11] = 0.25 * ((c0 + vn0) * ny * nz - vn0 * lambda * (tz * ty + sz * sy));
 
-                RKR[i][12] = 0.25 * (nz * (c0 + vn0) / (rho0 * c0));
-                RKR[i][13] = 0.25 * ((c0 + vn0) * nz * nx - vn0 * lambda * (tx * tz + sx * sz));
-                RKR[i][14] = 0.25 * ((c0 + vn0) * nz * ny - vn0 * lambda * (ty * tz + sy * sz));
-                RKR[i][15] = 0.25 * ((c0 + vn0) * nz * nz - vn0 * lambda * (tz * tz + sz * sz));
+                // RKR[i][12] = 0.25 * (nz * (c0 + vn0) / (rho0 * c0));
+                // RKR[i][13] = 0.25 * ((c0 + vn0) * nz * nx - vn0 * lambda * (tx * tz + sx * sz));
+                // RKR[i][14] = 0.25 * ((c0 + vn0) * nz * ny - vn0 * lambda * (ty * tz + sy * sz));
+                // RKR[i][15] = 0.25 * ((c0 + vn0) * nz * nz - vn0 * lambda * (tz * tz + sz * sz));
+
+
+                // RKR[i][0] = 0.5 * (c0 + vn0);
+                // RKR[i][1] = 0.5 * (c0 * rho0 * (c0 + vn0) * nx);
+                // RKR[i][2] = 0.5 * (c0 * rho0 * (c0 + vn0) * ny);
+                // RKR[i][3] = 0.5 * (c0 * rho0 * (c0 + vn0) * nz);
+
+                // RKR[i][4] = 0.5 * (nx * (c0 + vn0) / (rho0 * c0));
+                // RKR[i][5] = 0.5 * (c0 + vn0) * nx * nx + vn0 * lambda * (tx * tx + sx * sx);
+                // RKR[i][6] = 0.5 * (c0 + vn0) * nx * ny + vn0 * lambda * (ty * tx + sy * sx);
+                // RKR[i][7] = 0.5 * (c0 + vn0) * nx * nz + vn0 * lambda * (tz * tx + sz * sx);
+
+                // RKR[i][8] = 0.5 * (ny * (c0 + vn0) / (rho0 * c0));
+                // RKR[i][9] = 0.5 * (c0 + vn0) * ny * nx + vn0 * lambda * (tx * ty + sx * sy);
+                // RKR[i][10] = 0.5 * (c0 + vn0) * ny * ny + vn0 * lambda * (ty * ty + sy * sy);
+                // RKR[i][11] = 0.5 * (c0 + vn0) * ny * nz + vn0 * lambda * (tz * ty + sz * sy);
+
+                // RKR[i][12] = 0.5 * (nz * (c0 + vn0) / (rho0 * c0));
+                // RKR[i][13] = 0.5 * (c0 + vn0) * nz * nx + vn0 * lambda * (tx * tz + sx * sz);
+                // RKR[i][14] = 0.5 * (c0 + vn0) * nz * ny + vn0 * lambda * (ty * tz + sy * sz);
+                // RKR[i][15] = 0.5 * (c0 + vn0) * nz * nz + vn0 * lambda * (tz * tz + sz * sz);
+
+
+                RKR[i][0] = 0.5 * (c0 + vn0);
+                RKR[i][1] = 0.5 * nx * (vn0 + c0) / (rho0 * c0);
+                RKR[i][2] = 0.5 * ny * (vn0 + c0) / (rho0 * c0);
+                RKR[i][3] = 0.5 * nz * (vn0 + c0) / (rho0 * c0);
+
+                RKR[i][4] = 0.5 * nx * (vn0 + c0) / (rho0 * c0);
+                RKR[i][5] = vn0 * lambda * (sx * sx + tx * tx) + 0.5 * nx * nx * (vn0 + c0) / (rho0 * rho0 * c0 * c0);
+                RKR[i][6] = vn0 * lambda * (sx * sy + tx * ty) + 0.5 * ny * nx * (vn0 + c0) / (rho0 * rho0 * c0 * c0);
+                RKR[i][7] = vn0 * lambda * (sx * sz + tx * tz) + 0.5 * nz * nx * (vn0 + c0) / (rho0 * rho0 * c0 * c0);
+
+                RKR[i][8] = 0.5 * ny * (vn0 + c0) / (rho0 * c0);
+                RKR[i][9] = vn0 * lambda * (sy * sx + ty * tx) + 0.5 * nx * ny * (vn0 + c0) / (rho0 * rho0 * c0 * c0);
+                RKR[i][10] = vn0 * lambda * (sy * sy + ty * ty) + 0.5 * ny * ny * (vn0 + c0) / (rho0 * rho0 * c0 * c0);
+                RKR[i][11] = vn0 * lambda * (sy * sz + ty * tz) + 0.5 * nz * ny * (vn0 + c0) / (rho0 * rho0 * c0 * c0);
+
+                RKR[i][12] = 0.5 * nz * (vn0 + c0) / (rho0 * c0);
+                RKR[i][13] = vn0 * lambda * (sz * sx + tz * tx) + 0.5 * nx * nz * (vn0 + c0) / (rho0 * rho0 * c0 * c0);
+                RKR[i][14] = vn0 * lambda * (sz * sy + tz * ty) + 0.5 * ny * nz * (vn0 + c0) / (rho0 * rho0 * c0 * c0);
+                RKR[i][15] = vn0 * lambda * (sz * sz + tz * tz) + 0.5 * nz * nz * (vn0 + c0) / (rho0 * rho0 * c0 * c0);
             }
         }
     }

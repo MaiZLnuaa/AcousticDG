@@ -16,6 +16,7 @@
 file(GLOB_RECURSE SRCS
     "${CMAKE_SOURCE_DIR}/src/*.cpp"
     "${CMAKE_SOURCE_DIR}/include/*.h"
+    "${CMAKE_SOURCE_DIR}/src/*.cu"
 )
 # 设置构建类型为 Release（开启 O3）
 # set(CMAKE_BUILD_TYPE Release)

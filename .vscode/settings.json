@@ -80,5 +80,6 @@
         "execution": "cpp",
         "sparse": "cpp",
         "dense": "cpp"
-    }
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }
