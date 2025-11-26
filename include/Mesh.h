@@ -213,8 +213,10 @@ public:
     // void getUniqueFaceNodeTags_test();
     void getElStiffVector(size_t el, std::vector<std::vector<double>> &Flux,
                           std::vector<double> &u, double *elStiffVector);
+    void getZKPorousHVector(size_t el, int eq, std::vector<double> &u, double *elZKHVector, double porosity, double tortuosity, double resistivity, double gamma);
     void updateFlux(std::vector<std::vector<double>> &u, std::vector<std::vector<std::vector<double>>> &Flux,
                     std::vector<double> &v0, double c0, double rho0);
+    void updatezkFlux(std::vector<std::vector<double>> &u, std::vector<std::vector<std::vector<double>>> &Flux, std::vector<double> &v0, double c0, double rho0, double porosity, double tortuosity, double resistivity, double gamma);
 
     /**
      * @brief Write VTK
@@ -234,6 +236,10 @@ public:
                             const std::vector<double>& vy,                            // 所有节点上的 vy
                             const std::vector<double>& vz                             // 所有节点上的 vz
                             );
+    void computeSigma();
+    void getDampingPressureVector(const size_t eq, const size_t el, std::vector<double> &u, std::vector<std::vector<double>> &pml_phi, double *elDampingPressureVector);
+    void getAuxiliaryEquationTerm1(const size_t eq, const size_t el, std::vector<std::vector<double>> &pml_phi, double *elAuxiliaryTerm1Vector);
+    void getAuxiliaryEquationTerm2(const size_t eq, const size_t el, std::vector<double> &u, std::vector<double> &u_old, std::vector<std::vector<double>> &pml_phi, double *elAuxiliaryTerm2Vector);
 
     /** 
      * debug std::vector<T> &vector
@@ -247,6 +253,63 @@ public:
     */
     template <typename T>
     void print_matrix(std::vector<std::vector<T>> &matrix);
+
+    // PML elements
+    std::unordered_set<std::size_t> PML_Elements;
+    std::unordered_set<std::size_t> PML_BottomLeft_Elements;
+    std::unordered_set<std::size_t> PML_Bottom_Elements;
+    std::unordered_set<std::size_t> PML_BottomRight_Elements;
+    std::unordered_set<std::size_t> PML_Left_Elements;
+    std::unordered_set<std::size_t> PML_Right_Elements;
+    std::unordered_set<std::size_t> PML_TopLeft_Elements;
+    std::unordered_set<std::size_t> PML_Top_Elements;
+    std::unordered_set<std::size_t> PML_TopRight_Elements;
+
+    std::vector<double> m_elsigmax;
+    std::vector<double> m_elsigmay;
+    std::vector<double> m_elsigmaz;
+
+    std::vector<double> m_elsigma_bottomleft_x;
+    std::vector<double> m_elsigma_bottomleft_y;
+    std::vector<double> m_elsigma_bottomleft_z;
+
+    std::vector<double> m_elsigma_bottom_x;
+    std::vector<double> m_elsigma_bottom_y;
+    std::vector<double> m_elsigma_bottom_z;
+
+    std::vector<double> m_elsigma_bottomright_x;
+    std::vector<double> m_elsigma_bottomright_y;
+    std::vector<double> m_elsigma_bottomright_z;
+
+    std::vector<double> m_elsigma_left_x;
+    std::vector<double> m_elsigma_left_y;
+    std::vector<double> m_elsigma_left_z;
+
+    std::vector<double> m_elsigma_right_x;
+    std::vector<double> m_elsigma_right_y;
+    std::vector<double> m_elsigma_right_z;
+
+    std::vector<double> m_elsigma_topleft_x;
+    std::vector<double> m_elsigma_topleft_y;
+    std::vector<double> m_elsigma_topleft_z;
+
+    std::vector<double> m_elsigma_top_x;
+    std::vector<double> m_elsigma_top_y;
+    std::vector<double> m_elsigma_top_z;
+
+    std::vector<double> m_elsigma_topright_x;
+    std::vector<double> m_elsigma_topright_y;
+    std::vector<double> m_elsigma_topright_z;
+
+    bool isPML(std::size_t eTag) const {
+        return PML_Elements.count(eTag);
+    }
+
+    // Porous elements
+    std::unordered_set<std::size_t> Porous_Elements;
+    bool isPorous(std::size_t eTag) const {
+        return Porous_Elements.count(eTag);
+    }
 
 private:
     Config config;    // Configuration object

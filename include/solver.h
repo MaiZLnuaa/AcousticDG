@@ -13,7 +13,7 @@ namespace solver
      * @param mesh
      * @param config
      */
-    void forwardEuler(std::vector<std::vector<double>> &u, Mesh &mesh, Config config);
+    void forwardEuler(std::vector<std::vector<double>> &u, Mesh &mesh, Config config, std::vector<std::vector<double>> &phi);
 
     /**
      * Solve using explicit Runge-Kutta integration method. O(h^4)

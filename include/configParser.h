@@ -110,6 +110,9 @@ struct Config
     // Initial conditions
     std::vector<std::vector<double>> initConditions;
 
+    // Porous material parameters
+    std::vector<std::vector<double>> porousParams;
+
     // Save file
     // std::string saveFile = "results.msh";
 

@@ -443,6 +443,13 @@ namespace eigen
         A_eigen -= B_eigen;
     }
 
+    void minusFromZero(double *A, double *B, int N)
+    {
+        Eigen::Map<Eigen::VectorXd> A_eigen(A, N);
+        Eigen::Map<Eigen::VectorXd> B_eigen(B, N);
+        A_eigen = -B_eigen;
+    }
+
     void plus(double *A, double *B, int N)
     {
         Eigen::Map<Eigen::VectorXd> A_eigen(A, N);

@@ -167,6 +167,126 @@ Mesh::Mesh(Config config) : config(config)
     gmsh::logger::write("Integration Nbr points : " + std::to_string(m_elNumIntPts));
 
     /******************************
+     *        PML & Porous        *
+     ******************************/
+    // 映射：physical tag -> name
+    std::vector<std::pair<int, int>> physGroups;
+    gmsh::model::getPhysicalGroups(physGroups, m_elDim);
+
+    std::unordered_map<int, std::string> physTagToName;
+    for (auto &[d, tag] : physGroups) {
+        std::string name;
+        gmsh::model::getPhysicalName(d, tag, name);
+        physTagToName[tag] = name;
+    }
+
+    // 映射：element tag -> region name
+    std::unordered_map<std::size_t, std::string> elementToRegion;
+
+    for (auto &[physTag, physName] : physTagToName) 
+    {
+        std::vector<int> entityTags;
+        gmsh::model::getEntitiesForPhysicalGroup(m_elDim, physTag, entityTags);
+
+        for (int entityTag : entityTags) 
+        {
+            std::vector<int> elementTypes;
+            std::vector<std::vector<std::size_t>> elementTags;
+            std::vector<std::vector<std::size_t>> nodeTags;
+
+            gmsh::model::mesh::getElements(elementTypes, elementTags, nodeTags, m_elDim, entityTag);
+
+
+            for (size_t i = 0; i < elementTags.size(); ++i) 
+            {
+                if (elementTypes[i] != m_elType[0])  
+                    continue;
+
+                for (std::size_t eTag : elementTags[i]) 
+                {
+                    if (physName == "Air") {
+                        elementToRegion[eTag] = "Air";
+                    } else if (physName.find("PML") != std::string::npos) {
+                        elementToRegion[eTag] = physName;  
+                    } else if (physName == "Porous") {
+                        elementToRegion[eTag] = "Porous";
+                    }
+                    else {
+                        elementToRegion[eTag] = "Unknown";
+                    }     
+                }
+            }
+        }
+    }
+
+    // std::unordered_set<std::size_t> PML_Elements;
+
+    for (const auto &[eTag, region] : elementToRegion) {
+        if (region.find("PML") != std::string::npos) {
+            PML_Elements.insert(eTag);
+        }
+        if (region == "PML_BottomLeft")
+        {
+            PML_BottomLeft_Elements.insert(eTag);
+        }
+        else if (region == "PML_Bottom")
+        {
+            PML_Bottom_Elements.insert(eTag);
+        }
+        else if (region == "PML_BottomRight")
+        {
+            PML_BottomRight_Elements.insert(eTag);
+        }
+        else if (region == "PML_Left")
+        {
+            PML_Left_Elements.insert(eTag);
+        }
+        else if (region == "PML_Right")
+        {
+            PML_Right_Elements.insert(eTag);
+        }
+        else if (region == "PML_TopLeft")
+        {
+            PML_TopLeft_Elements.insert(eTag);
+        }
+        else if (region == "PML_Top")
+        {
+            PML_Top_Elements.insert(eTag);
+        }
+        else if (region == "PML_TopRight")
+        {
+            PML_TopRight_Elements.insert(eTag);
+        }
+        else if (region == "Porous") {
+            Porous_Elements.insert(eTag);
+        }
+    }
+    
+
+    // for (int i = 0; i < m_elNum; i++)
+    // {
+    //     if (isPML(m_elTags[i]))
+    //     {
+    //         std::cout << "Element " << m_elTags[i] << " is in PML region: " << elementToRegion[m_elTags[i]] << std::endl;
+    //     }
+    //     if (isPorous(m_elTags[i]))
+    //     {
+    //         std::cout << "Element " << m_elTags[i] << " is in Porous region." << std::endl;
+    //     }
+    // }
+    // for (int i = 0; i < m_elNum; i++)
+    // {
+    //     if (PML_BottomLeft_Elements.count(m_elTags[i]))
+    //     {
+    //         std::cout << "Element " << m_elTags[i] << " is in PML_BottomLeft region." << std::endl;
+    //     }
+        
+    // }
+    // getchar();
+
+
+
+    /******************************
      *            Faces           *
      ******************************/
     screen_display::write_string("Faces treatment", GREEN);
@@ -624,7 +744,7 @@ Mesh::Mesh(Config config) : config(config)
                             ++count;
                             if (count >= m_fNumNodes)  
                             {
-                                m_fBC[f] = (BCtype == "Reflecting") ? 1 : 0;
+                                m_fBC[f] = (BCtype == "Reflecting") ? 1 : 100;
                                 break;
                             }
                         }
@@ -649,7 +769,7 @@ Mesh::Mesh(Config config) : config(config)
                             ++count;
                             if (count >= m_fNumNodes)  
                             {
-                                m_fBC[f] = (BCtype == "Absorbing") ? 0 : 0;
+                                m_fBC[f] = (BCtype == "Absorbing") ? 0 : 100;
                                 break;
                             }
                         }
@@ -856,6 +976,38 @@ void Mesh::getElStiffVector(const size_t el, std::vector<std::vector<double>> &F
         }
     }
 }
+
+/**
+ * Compute the zk porous H Vector.
+ */
+
+void Mesh::getZKPorousHVector(const size_t el, int eq, std::vector<double> &u, double *elZKHVector, double porosity, double tortuosity, double resistivity, double gamma)
+{   
+    if (isPorous(m_elTags[el]) && eq != 0)
+    {
+        int jId;
+        for (int i = 0; i < m_elNumNodes; i++)
+        {
+            elZKHVector[i] = 0.0;
+            for (int j = 0; j < m_elNumNodes; j++)
+            {
+                jId = el * m_elNumNodes + j;
+                for (int g = 0; g < m_elNumIntPts; g++)
+                {
+                    elZKHVector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * porosity / tortuosity / config.rho0 * resistivity * u[jId];
+                }
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; i < m_elNumNodes; i++)
+        {
+            elZKHVector[i] = 0.0;
+        }
+    }
+}
+        
 
 /**
  * Precompute the numerical flux through all the faces. The flux implemented is
@@ -1136,7 +1288,156 @@ void Mesh::updateFlux(std::vector<std::vector<double>> &u, std::vector<std::vect
                         for (int eq = 0; eq < 4; ++eq)
                             FluxGhost[eq][gId][0] = eigen::dot(&fNormal(fId, g), &FluxGhost[eq][gId][0], m_Dim);
                     }
-                    else
+                    else if (m_fBC[fId] == 0)
+                    {
+                        // Absorbing boundary conditions
+                        // /!\ Flux already projected on normal,
+                        FluxGhost[0][gId][0] = RKR[gId][0] * uGhost[0][gId] +
+                                               RKR[gId][1] * uGhost[1][gId] +
+                                               RKR[gId][2] * uGhost[2][gId] +
+                                               RKR[gId][3] * uGhost[3][gId];
+                        FluxGhost[1][gId][0] = RKR[gId][4] * uGhost[0][gId] +
+                                               RKR[gId][5] * uGhost[1][gId] +
+                                               RKR[gId][6] * uGhost[2][gId] +
+                                               RKR[gId][7] * uGhost[3][gId];
+                        FluxGhost[2][gId][0] = RKR[gId][8] * uGhost[0][gId] +
+                                               RKR[gId][9] * uGhost[1][gId] +
+                                               RKR[gId][10] * uGhost[2][gId] +
+                                               RKR[gId][11] * uGhost[3][gId];
+                        FluxGhost[3][gId][0] = RKR[gId][12] * uGhost[0][gId] +
+                                               RKR[gId][13] * uGhost[1][gId] +
+                                               RKR[gId][14] * uGhost[2][gId] +
+                                               RKR[gId][15] * uGhost[3][gId];
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ZK porous media flux update
+void Mesh::updatezkFlux(std::vector<std::vector<double>> &u, std::vector<std::vector<std::vector<double>>> &Flux, std::vector<double> &v0, double c0, double rho0, double porosity, double tortuosity, double resistivity, double gamma)
+{   
+    double alpha = porosity / tortuosity / rho0;
+    double beta = rho0 * c0 * c0 / porosity;
+    // #pragma omp parallel for
+#pragma omp parallel for schedule(static) num_threads(config.numThreads)
+    for (size_t el = 0; el < m_elNum; ++el)
+    {
+        for (int n = 0; n < m_elNumNodes; ++n)
+        {
+            int i = el * m_elNumNodes + n;
+
+            if(!isPorous(m_elTags[el]))
+            {
+                // ---- AIR: original LEE flux ----
+                // Pressure flux
+                Flux[0][i] = {v0[0] * u[0][i] + rho0 * c0 * c0 * u[1][i],
+                            v0[1] * u[0][i] + rho0 * c0 * c0 * u[2][i],
+                            v0[2] * u[0][i] + rho0 * c0 * c0 * u[3][i]};
+                // Vx
+                Flux[1][i] = {v0[0] * u[1][i] + u[0][i] / rho0,
+                            v0[1] * u[1][i],
+                            v0[2] * u[1][i]};
+                // Vy
+                Flux[2][i] = {v0[0] * u[2][i],
+                            v0[1] * u[2][i] + u[0][i] / rho0,
+                            v0[2] * u[2][i]};
+                // Vz
+                Flux[3][i] = {v0[0] * u[3][i],
+                            v0[1] * u[3][i],
+                            v0[2] * u[3][i] + u[0][i] / rho0};
+            }else
+            {
+                // ---- POROUS: ZK-style flux ----
+                // Note: u[0]=p, u[1..3]=u,v,w
+                Flux[0][i] = { beta * u[1][i], beta * u[2][i], beta * u[3][i] }; // pressure eq: div(beta u)
+                Flux[1][i] = { alpha * u[0][i], 0.0, 0.0 };                      // vx eq: ∂x(alpha p)
+                Flux[2][i] = { 0.0, alpha * u[0][i], 0.0 };                      // vy eq
+                Flux[3][i] = { 0.0, 0.0, alpha * u[0][i] };                      // vz eq
+            }
+        }
+
+        // Ghost elements
+        for (int f = 0; f < m_fNumPerEl; ++f)
+        {
+            int fId = elFId(el, f);
+            if (m_fIsBoundary[fId])
+            {
+
+                for (int g = 0; g < m_fNumIntPts; ++g)
+                {
+                    int gId = fId * m_fNumIntPts + g;
+
+                    // Interpolate solution at integration points
+                    uGhost[0][gId] = 0;
+                    uGhost[1][gId] = 0;
+                    uGhost[2][gId] = 0;
+                    uGhost[3][gId] = 0;
+                    for (int n = 0; n < m_fNumNodes; ++n)
+                    {
+                        int nId = el * m_elNumNodes + fNToElNId(fId, n, 0);
+////////////////////////
+#pragma omp atomic
+                        uGhost[0][gId] += u[0][nId] * fBasisFct(g, n);
+#pragma omp atomic
+                        uGhost[1][gId] += u[1][nId] * fBasisFct(g, n);
+#pragma omp atomic
+                        uGhost[2][gId] += u[2][nId] * fBasisFct(g, n);
+#pragma omp atomic
+                        uGhost[3][gId] += u[3][nId] * fBasisFct(g, n);
+                    }
+
+                    if (m_fBC[fId] == 1)
+                    {
+                        double nx(fNormal(fId, g, 0)), ny(fNormal(fId, g, 1)), nz(fNormal(fId, g, 2));
+                        double dot = nx * uGhost[1][gId] +
+                                     ny * uGhost[2][gId] +
+                                     nz * uGhost[3][gId];
+// #pragma omp critical
+                        // std::cout << nx << " " << ny << " " << nz << std::endl;
+
+// Remove normal component (Rigid Wall BC)
+#pragma omp atomic
+                        uGhost[1][gId] -= dot * nx;
+#pragma omp atomic
+                        uGhost[2][gId] -= dot * ny;
+#pragma omp atomic
+                        uGhost[3][gId] -= dot * nz;
+
+                        if (!isPorous(m_elTags[el])) {
+                            // original LEE fluxGhost (same as before)
+                            // Flux at integration points
+
+                            // 1) Pressure flux
+                            FluxGhost[0][gId] = {v0[0] * uGhost[0][gId] + rho0 * c0 * c0 * uGhost[1][gId],
+                                                v0[1] * uGhost[0][gId] + rho0 * c0 * c0 * uGhost[2][gId],
+                                                v0[2] * uGhost[0][gId] + rho0 * c0 * c0 * uGhost[3][gId]};
+                            // 2) Vx
+                            FluxGhost[1][gId] = {v0[0] * uGhost[1][gId] + uGhost[0][gId] / rho0,
+                                                v0[1] * uGhost[1][gId],
+                                                v0[2] * uGhost[1][gId]};
+                            // 3) Vy
+                            FluxGhost[2][gId] = {v0[0] * uGhost[2][gId],
+                                                v0[1] * uGhost[2][gId] + uGhost[0][gId] / rho0,
+                                                v0[2] * uGhost[2][gId]};
+                            // 4) Vz
+                            FluxGhost[3][gId] = {v0[0] * uGhost[3][gId],
+                                                v0[1] * uGhost[3][gId],
+                                                v0[2] * uGhost[3][gId] + uGhost[0][gId] / rho0};
+                        } else {
+                            // porous boundary: use ZK fluxGhost
+                            FluxGhost[0][gId] = { beta*uGhost[1][gId], beta*uGhost[2][gId], beta*uGhost[3][gId] };
+                            FluxGhost[1][gId] = { alpha*uGhost[0][gId], 0.0, 0.0 };
+                            FluxGhost[2][gId] = { 0.0, alpha*uGhost[0][gId], 0.0 };
+                            FluxGhost[3][gId] = { 0.0, 0.0, alpha*uGhost[0][gId] };
+                        }
+
+                        // Project Flux on the normal
+                        for (int eq = 0; eq < 4; ++eq)
+                            FluxGhost[eq][gId][0] = eigen::dot(&fNormal(fId, g), &FluxGhost[eq][gId][0], m_Dim);
+                    }
+                    else if (m_fBC[fId] == 0)
                     {
                         // Absorbing boundary conditions
                         // /!\ Flux already projected on normal,
@@ -1656,3 +1957,235 @@ void Mesh::print_vector(std::vector<T> &vector) {
     }
     std::cout << std::endl;
 }
+
+
+// PML Boundary conditions
+// Reference:
+//   “A stable decoupled perfectly matched layer for the 3D wave equation using the nodal discontinuous Galerkin method”.
+//   https://www.sciencedirect.com/science/article/pii/S0022460X24005418
+void Mesh::computeSigma() 
+{
+    double c0 = config.c0;
+    double d_pml = 3.0;  // PML厚度
+    double R_ref = 1e-6;
+    int m = 2;
+    double sigma_max = -(m + 1.0) * c0 / (2.0 * d_pml) * std::log(R_ref);
+    printf("std::log10(R_ref): %f\n", std::log(R_ref));
+    // double sigma_max = -c0 / (2.0 * d_pml) * std::log(R_ref);
+
+    m_elsigmax.assign(m_elNum, 0.0);
+    m_elsigmay.assign(m_elNum, 0.0);
+    m_elsigmaz.assign(m_elNum, 0.0);
+
+    m_elsigma_bottom_x.assign(m_elNum, 0.0);
+    m_elsigma_bottom_y.assign(m_elNum, 0.0);
+    m_elsigma_bottom_z.assign(m_elNum, 0.0);
+
+    m_elsigma_bottomleft_x.assign(m_elNum, 0.0);
+    m_elsigma_bottomleft_y.assign(m_elNum, 0.0);
+    m_elsigma_bottomleft_z.assign(m_elNum, 0.0);
+
+    m_elsigma_bottomright_x.assign(m_elNum, 0.0);
+    m_elsigma_bottomright_y.assign(m_elNum, 0.0);
+    m_elsigma_bottomright_z.assign(m_elNum, 0.0);
+
+    m_elsigma_top_x.assign(m_elNum, 0.0);
+    m_elsigma_top_y.assign(m_elNum, 0.0);
+    m_elsigma_top_z.assign(m_elNum, 0.0);
+
+    m_elsigma_topleft_x.assign(m_elNum, 0.0);
+    m_elsigma_topleft_y.assign(m_elNum, 0.0);
+    m_elsigma_topleft_z.assign(m_elNum, 0.0);
+
+    m_elsigma_topright_x.assign(m_elNum, 0.0);
+    m_elsigma_topright_y.assign(m_elNum, 0.0);
+    m_elsigma_topright_z.assign(m_elNum, 0.0);
+
+    m_elsigma_left_x.assign(m_elNum, 0.0);
+    m_elsigma_left_y.assign(m_elNum, 0.0);
+    m_elsigma_left_z.assign(m_elNum, 0.0);
+
+    m_elsigma_right_x.assign(m_elNum, 0.0);
+    m_elsigma_right_y.assign(m_elNum, 0.0);
+    m_elsigma_right_z.assign(m_elNum, 0.0);
+
+    for (size_t el = 0; el < m_elNum; el++) {
+        if (!isPML(m_elTags[el])) continue;
+
+        // 计算质心
+        double x_centroid = 0.0, y_centroid = 0.0;
+        for (int n = 0; n < m_elNumNodes; n++) {
+            std::vector<double> coord, paramCoord;
+            int _dim, _tag;
+            int nodeTag = elNodeTag(el, n);      // 获取节点全局编号
+            gmsh::model::mesh::getNode(nodeTag, coord, paramCoord, _dim, _tag);
+            x_centroid += coord[0];  // 节点x坐标
+            y_centroid += coord[1];  // 节点y坐标
+        }
+        x_centroid /= m_elNumNodes;
+        y_centroid /= m_elNumNodes;
+
+        double sigma_x = 0.0, sigma_y = 0.0, sigma_z = 0.0;
+        double x_min = -7.5, x_max = 7.5, y_min = -2.5, y_max = 2.5;
+
+        if (PML_BottomLeft_Elements.count(m_elTags[el]))
+        {
+            double distx = std::clamp(abs(x_centroid - x_min), 0.0, d_pml);
+            double disty = std::clamp(abs(y_centroid - y_min), 0.0, d_pml);
+            m_elsigma_bottomleft_x[el] = sigma_max * pow(distx / d_pml, m);
+            m_elsigma_bottomleft_y[el] = sigma_max * pow(disty / d_pml, m);
+            // m_elsigma_bottomleft_x[el] = sigma_max * (distx / d_pml - sin(2.0 * M_PI * distx / d_pml) / (2.0 * M_PI));
+            // m_elsigma_bottomleft_y[el] = sigma_max * (disty / d_pml - sin(2.0 * M_PI * disty / d_pml) / (2.0 * M_PI)); 
+        }
+        if (PML_Bottom_Elements.count(m_elTags[el]))
+        {
+            double disty = std::clamp(abs(y_centroid - y_min), 0.0, d_pml);
+            m_elsigma_bottom_y[el] = sigma_max * pow(disty / d_pml, m);
+            // m_elsigma_bottom_y[el] = sigma_max * (disty / d_pml - sin(2.0 * M_PI * disty / d_pml) / (2.0 * M_PI));
+        }
+        if (PML_BottomRight_Elements.count(m_elTags[el]))
+        {
+            double distx = std::clamp(abs(x_centroid - x_max), 0.0, d_pml);
+            double disty = std::clamp(abs(y_centroid - y_min), 0.0, d_pml);
+            m_elsigma_bottomright_x[el] = sigma_max * pow(distx / d_pml, m);
+            m_elsigma_bottomright_y[el] = sigma_max * pow(disty / d_pml, m);
+            // m_elsigma_bottomright_x[el] = sigma_max * (distx / d_pml - sin(2.0 * M_PI * distx / d_pml) / (2.0 * M_PI));
+            // m_elsigma_bottomright_y[el] = sigma_max * (disty / d_pml - sin(2.0 * M_PI * disty / d_pml) / (2.0 * M_PI));
+        }
+        if (PML_TopLeft_Elements.count(m_elTags[el]))
+        {
+            double distx = std::clamp(abs(x_centroid - x_min), 0.0, d_pml);
+            double disty = std::clamp(abs(y_centroid - y_max), 0.0, d_pml);
+            m_elsigma_topleft_x[el] = sigma_max * pow(distx / d_pml, m);
+            m_elsigma_topleft_y[el] = sigma_max * pow(disty / d_pml, m);
+            // m_elsigma_topleft_x[el] = sigma_max * (distx / d_pml - sin(2.0 * M_PI * distx / d_pml) / (2.0 * M_PI));
+            // m_elsigma_topleft_y[el] = sigma_max * (disty / d_pml - sin(2.0 * M_PI * disty / d_pml) / (2.0 * M_PI));
+        }
+        if (PML_Top_Elements.count(m_elTags[el]))
+        {
+            double disty = std::clamp(abs(y_centroid - y_max), 0.0, d_pml);
+            m_elsigma_top_y[el] = sigma_max * pow(disty / d_pml, m);
+            // m_elsigma_top_y[el] = sigma_max * (disty / d_pml - sin(2.0 * M_PI * disty / d_pml) / (2.0 * M_PI));
+        }
+        if (PML_TopRight_Elements.count(m_elTags[el]))
+        {
+            double distx = std::clamp(abs(x_centroid - x_max), 0.0, d_pml);
+            double disty = std::clamp(abs(y_centroid - y_max), 0.0, d_pml);
+            m_elsigma_topright_x[el] = sigma_max * pow(distx / d_pml, m);
+            m_elsigma_topright_y[el] = sigma_max * pow(disty / d_pml, m);
+            // m_elsigma_topright_x[el] = sigma_max * (distx / d_pml - sin(2.0 * M_PI * distx / d_pml) / (2.0 * M_PI));
+            // m_elsigma_topright_y[el] = sigma_max * (disty / d_pml - sin(2.0 * M_PI * disty / d_pml) / (2.0 * M_PI));
+        }
+        if (PML_Left_Elements.count(m_elTags[el]))
+        {
+            double distx = std::clamp(abs(x_centroid - x_min), 0.0, d_pml);
+            m_elsigma_left_x[el] = sigma_max * pow(distx / d_pml, m);
+            // m_elsigma_left_x[el] = sigma_max * (distx / d_pml - sin(2.0 * M_PI * distx / d_pml) / (2.0 * M_PI));
+        }
+        if (PML_Right_Elements.count(m_elTags[el]))
+        {
+            double distx = std::clamp(abs(x_centroid - x_max), 0.0, d_pml);
+            m_elsigma_right_x[el] = sigma_max * pow(distx / d_pml, m);
+            // m_elsigma_right_x[el] = sigma_max * (distx / d_pml - sin(2.0 * M_PI * distx / d_pml) / (2.0 * M_PI));
+        }
+
+        m_elsigmax[el] = m_elsigma_bottom_x[el] + m_elsigma_bottomleft_x[el] + m_elsigma_bottomright_x[el]
+                        + m_elsigma_top_x[el] + m_elsigma_topleft_x[el] + m_elsigma_topright_x[el]
+                        + m_elsigma_left_x[el] + m_elsigma_right_x[el];
+        m_elsigmay[el] = m_elsigma_bottom_y[el] + m_elsigma_bottomleft_y[el] + m_elsigma_bottomright_y[el]
+                        + m_elsigma_top_y[el] + m_elsigma_topleft_y[el] + m_elsigma_topright_y[el]
+                        + m_elsigma_left_y[el] + m_elsigma_right_y[el];
+        m_elsigmaz[el] = 0.0;
+    }
+}
+
+
+void Mesh::getDampingPressureVector(const size_t eq, const size_t el, std::vector<double> &u, std::vector<std::vector<double>> &pml_phi, double *elDampingPressureVector)
+{
+    double rho0 = config.rho0;
+    double c0 = config.c0;
+    int jId;
+    for (int i = 0; i < m_elNumNodes; i++)
+    {
+        elDampingPressureVector[i] = 0.0;
+        for (int j = 0; j < m_elNumNodes; j++)
+        {
+            jId = el * m_elNumNodes + j;
+            for (int g = 0; g < m_elNumIntPts; g++)
+            {
+                if (eq == 0)
+                {
+                    elDampingPressureVector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * (m_elsigmax[el] + m_elsigmay[el] + m_elsigmaz[el]) * u[jId];
+                }
+                else if (eq == 1 || eq == 2 || eq == 3)
+                {
+                    elDampingPressureVector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) / (rho0 * c0 * c0) * pml_phi[eq-1][jId];
+                }
+            }
+        }
+    }
+}
+
+
+void Mesh::getAuxiliaryEquationTerm1(const size_t eq, const size_t el, std::vector<std::vector<double>> &pml_phi, double *elAuxiliaryTerm1Vector)
+{
+    int jId;
+    for (int i = 0; i < m_elNumNodes; i++)
+    {
+        elAuxiliaryTerm1Vector[i] = 0.0;
+        for (int j = 0; j < m_elNumNodes; j++)
+        {
+            jId = el * m_elNumNodes + j;
+            for (int g = 0; g < m_elNumIntPts; g++)
+            {
+                if (eq == 0)
+                {
+                    elAuxiliaryTerm1Vector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * (m_elsigmay[el] + m_elsigmaz[el]) * pml_phi[0][jId];
+                }
+                else if (eq == 1)
+                {
+                    elAuxiliaryTerm1Vector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * (m_elsigmax[el] + m_elsigmaz[el]) * pml_phi[1][jId];
+                }
+                else if (eq == 2)
+                {
+                    elAuxiliaryTerm1Vector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * (m_elsigmax[el] + m_elsigmay[el]) * pml_phi[2][jId];
+                }
+            }
+        }
+    }
+}
+
+void Mesh::getAuxiliaryEquationTerm2(const size_t eq, const size_t el, std::vector<double> &u, std::vector<double> &u_old, std::vector<std::vector<double>> &pml_phi, double *elAuxiliaryTerm2Vector) 
+    {
+        double rho0 = config.rho0;
+        double c0 = config.c0;
+        double dt = config.timeStep;
+        int jId;
+        for (int i = 0; i < m_elNumNodes; i++)
+        {
+            elAuxiliaryTerm2Vector[i] = 0.0;
+            for (int j = 0; j < m_elNumNodes; j++)
+            {
+                jId = el * m_elNumNodes + j;
+                for (int g = 0; g < m_elNumIntPts; g++)
+                {
+                    if (eq == 0)
+                    {
+                        elAuxiliaryTerm2Vector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * (rho0 * c0 * c0) * (m_elsigmax[el] - m_elsigmay[el] - m_elsigmaz[el]) * (u[jId] - u_old[jId]) / dt;
+                    }
+                    else if (eq == 1)
+                    {
+                        elAuxiliaryTerm2Vector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * (rho0 * c0 * c0) * (-m_elsigmax[el] + m_elsigmay[el] - m_elsigmaz[el]) * (u[jId] - u_old[jId]) / dt;
+                    }
+                    else if (eq == 2)
+                    {
+                        elAuxiliaryTerm2Vector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * (rho0 * c0 * c0) * (-m_elsigmax[el] - m_elsigmay[el] + m_elsigmaz[el]) * (u[jId] - u_old[jId]) / dt;
+                    }
+                }
+            }
+        }
+    }
+
+
+
+

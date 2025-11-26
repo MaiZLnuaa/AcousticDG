@@ -204,6 +204,16 @@ namespace config
                     std::vector<double> init1 = {0, x, y, z, size, amp};
                     config.initConditions.push_back(init1);
                 }
+                else if (key.find("zkporousparm") == 0)
+                {
+                    std::vector<std::string> sep = split(iter->second, ',');
+                    double porosity = std::stod(sep[0]);
+                    double tortuosity = std::stod(sep[1]);
+                    double resistivity = std::stod(sep[2]);
+                    double gamma = std::stod(sep[3]);
+                    std::vector<double> porous_param = {porosity, tortuosity, resistivity, gamma};
+                    config.porousParams.push_back(porous_param);
+                }
             }
 
             std::string physName;

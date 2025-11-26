@@ -23,6 +23,11 @@ namespace solver
     std::vector<int> elTags;
     std::vector<double> elFlux;
     std::vector<double> elStiffvector;
+    std::vector<double> elZKHvector;
+    std::vector<double> eldampingPvector;
+    std::vector<double> elAuxiliaryTerm1Vector;
+    std::vector<double> elAuxiliaryTerm2Vector;
+    std::vector<std::vector<double>> u_old(4, std::vector<double>(numNodes, 0.0));
     std::vector<std::vector<std::vector<double>>> Flux;
 
     std::vector<std::vector<float>> data4wave;
@@ -61,6 +66,88 @@ namespace solver
         }
     }
 
+    void pmlnumStep(Mesh &mesh, Config config, std::vector<std::vector<double>> &u, std::vector<std::vector<double>> &pml_phi,
+                 std::vector<std::vector<std::vector<double>>> &Flux, double beta)
+    {
+
+        for (int eq = 0; eq < 4; ++eq)
+        {
+            // mesh.precomputeFlux(u[eq], Flux[eq], eq);
+            mesh.newprecomputeFlux(u[eq], Flux[eq], eq, u[1], u[2], u[3]);
+            u_old[eq] = u[eq];
+
+#pragma omp parallel for schedule(static) firstprivate(elFlux, elStiffvector, eldampingPvector, elAuxiliaryTerm1Vector, elAuxiliaryTerm2Vector) num_threads(config.numThreads)
+            for (int el = 0; el < mesh.getElNum(); ++el)
+            {
+
+                mesh.getElFlux(el, elFlux.data());
+                mesh.getElStiffVector(el, Flux[eq], u[eq], elStiffvector.data()); // 获得 S_k
+                mesh.getDampingPressureVector(eq, el, u[eq], pml_phi, eldampingPvector.data());
+                eigen::minus(elStiffvector.data(), elFlux.data(), elNumNodes); // S_k - F_k
+                eigen::minus(elStiffvector.data(), eldampingPvector.data(), elNumNodes); // S_k - F_k - dampingP_k
+                eigen::linEq(&mesh.elMassMatrix(el), &elStiffvector[0], &u[eq][el * elNumNodes],
+                             config.timeStep, beta, elNumNodes); // 求 u[t+1] = beta * u[t] + dt * M^-1 * (S_k - F_k-dampingP_k)
+
+            }
+        }
+
+        for (int eq = 0; eq < 3; eq++)
+        {
+            int velEq = eq + 1;
+            #pragma omp parallel for schedule(static) firstprivate(elAuxiliaryTerm1Vector, elAuxiliaryTerm2Vector) num_threads(config.numThreads)
+            for (int el = 0; el < mesh.getElNum(); el++)
+            {
+                if (!mesh.isPML(mesh.elTag(el)))
+                {
+                    continue;
+                }
+                mesh.getAuxiliaryEquationTerm1(eq, el, pml_phi, elAuxiliaryTerm1Vector.data());
+                mesh.getAuxiliaryEquationTerm2(eq, el, u[velEq], u_old[velEq], pml_phi, elAuxiliaryTerm2Vector.data());
+                eigen::minusFromZero(elAuxiliaryTerm1Vector.data(), elAuxiliaryTerm1Vector.data(), elNumNodes); // - Term1_k
+                eigen::plus(elAuxiliaryTerm1Vector.data(), elAuxiliaryTerm2Vector.data(), elNumNodes); // + Term2_k
+                eigen::linEq(&mesh.elMassMatrix(el), &elAuxiliaryTerm1Vector[0], &pml_phi[eq][el * elNumNodes],
+                             config.timeStep, beta, elNumNodes); // 求 pml_phi[t+1] = beta * pml_phi[t] + dt * M^-1 * Term1_k
+            }
+            
+        }
+        
+    }
+        
+
+
+
+
+
+
+    void zknumStep(Mesh &mesh, Config config, std::vector<std::vector<double>> &u,
+                 std::vector<std::vector<std::vector<double>>> &Flux, double beta)
+    {
+
+        // porous media parameters
+        double porosity = config.porousParams[0][0];
+        double tortuosity = config.porousParams[0][1];
+        double resistivity = config.porousParams[0][2];
+        double gamma = config.porousParams[0][3];
+        for (int eq = 0; eq < 4; ++eq)
+        {
+            // mesh.precomputeFlux(u[eq], Flux[eq], eq);
+            mesh.newprecomputeFlux(u[eq], Flux[eq], eq, u[1], u[2], u[3]);
+#pragma omp parallel for schedule(static) firstprivate(elFlux, elStiffvector, elZKHvector) num_threads(config.numThreads)
+            for (int el = 0; el < mesh.getElNum(); ++el)
+            {
+                mesh.getElFlux(el, elFlux.data());
+                mesh.getElStiffVector(el, Flux[eq], u[eq], elStiffvector.data()); // 获得 S_k
+                eigen::minus(elStiffvector.data(), elFlux.data(), elNumNodes); // S_k - F_k
+
+                mesh.getZKPorousHVector(el, eq, u[eq], elZKHvector.data(), porosity, tortuosity, resistivity, gamma); // 获得 H_k
+                eigen::minus(elStiffvector.data(), elZKHvector.data(), elNumNodes); // S_k - F_k - H_k
+
+                eigen::linEq(&mesh.elMassMatrix(el), &elStiffvector[0], &u[eq][el * elNumNodes],
+                             config.timeStep, beta, elNumNodes); // 求 u[t+1] = beta * u[t] + dt * M^-1 * (S_k - F_k - H_k)
+            }
+        }
+    }
+
     void sourcenumStep(Mesh &mesh, Config config, std::vector<std::vector<double>> &u,
                  std::vector<std::vector<std::vector<double>>> &Flux, double beta, double t, std::vector<std::vector<int>> srcIndices)
     {
@@ -91,7 +178,7 @@ namespace solver
      * @param mesh
      * @param config
      */
-    void forwardEuler(std::vector<std::vector<double>> &u, Mesh &mesh, Config config)
+    void forwardEuler(std::vector<std::vector<double>> &u, Mesh &mesh, Config config, std::vector<std::vector<double>> &pml_phi)
     {
 
         /** Memory allocation */
@@ -100,6 +187,10 @@ namespace solver
         elTags = std::vector<int>(&mesh.elTag(0), &mesh.elTag(0) + mesh.getElNum());
         elFlux.resize(elNumNodes);
         elStiffvector.resize(elNumNodes);
+        elZKHvector.resize(elNumNodes, 0.0);
+        eldampingPvector.resize(elNumNodes, 0.0);
+        elAuxiliaryTerm1Vector.resize(elNumNodes, 0.0);
+        elAuxiliaryTerm2Vector.resize(elNumNodes, 0.0);
         Flux = std::vector<std::vector<std::vector<double>>>(4,
                                                              std::vector<std::vector<double>>(mesh.getNumNodes(),
                                                                                               std::vector<double>(3)));
@@ -115,6 +206,9 @@ namespace solver
 
         /** Precomputation */
         mesh.precomputeMassMatrix();
+
+        /** ComputeSigma */
+        mesh.computeSigma();
 
         /** Source */
         std::vector<std::vector<int>> srcIndices;
@@ -258,7 +352,8 @@ namespace solver
              * First Order Euler
              */
             mesh.updateFlux(u, Flux, config.v0, config.c0, config.rho0);
-            numStep(mesh, config, u, Flux, 1);
+            // numStep(mesh, config, u, Flux, 1);
+            pmlnumStep(mesh, config, u, pml_phi, Flux, 1);
 
             /**
              * Compute residuals
@@ -318,7 +413,7 @@ namespace solver
                 v[1] /= w_sum;
                 v[2] /= w_sum;
                 data4wave[obs].push_back(p);
-                obs_outfile[obs] << t << ";" << rho << ";" << p << ";" << v[0] << ";" << v[1] << ";" << v[2] << std::endl;
+                obs_outfile[obs] << t << ";" << p << ";" << rho << ";" << v[0] << ";" << v[1] << ";" << v[2] << std::endl;
             }
         }
         for (int obs = 0; obs < config.observers.size(); ++obs)
@@ -348,6 +443,7 @@ namespace solver
         elTags = std::vector<int>(&mesh.elTag(0), &mesh.elTag(0) + mesh.getElNum());
         elFlux.resize(elNumNodes);
         elStiffvector.resize(elNumNodes);
+        elZKHvector.resize(elNumNodes, 0.0);
         elSourceVector.resize(elNumNodes);
         std::vector<std::vector<double>> k1, k2, k3, k4;
         Flux = std::vector<std::vector<std::vector<double>>>(4,
@@ -416,6 +512,32 @@ namespace solver
             obsIndices.push_back(indice);
             obsPtDistance.push_back(dist);
         }
+
+        for (int i = 0; i < obsIndices.size(); i++)
+        {
+            std::cout << "Observer " << i
+                    << " @ (" << config.observers[i][0] << ", "
+                    << config.observers[i][1] << ", "
+                    << config.observers[i][2] << ")"
+                    << "  radius = " << config.observers[i][3]
+                    << "  → contains " << obsIndices[i].size() << " nodes" << std::endl;
+
+            for (int j = 0; j < obsIndices[i].size(); j++)
+            {
+                int nodeIndex = obsIndices[i][j];
+                std::vector<double> coord, paramCoord;
+                int dim, tag;
+                gmsh::model::mesh::getNode(mesh.getElNodeTags()[nodeIndex], coord, paramCoord, dim, tag);
+
+                std::cout << "    Node " << nodeIndex
+                        << " : (" << coord[0] << ", "
+                        << coord[1] << ", "
+                        << coord[2] << ")"
+                        << "  distance = " << obsPtDistance[i][j] << std::endl;
+            }
+            std::cout << std::endl;
+        }
+        getchar(); // 暂停程序，按回车继续
 
         // for (int i = 0; i < obsIndices.size(); i++)
         // {
@@ -541,26 +663,34 @@ namespace solver
              */
             k1 = k2 = k3 = k4 = u;
             /** [1] Step R-K */
-            mesh.updateFlux(k1, Flux, config.v0, config.c0, config.rho0);
-            numStep(mesh, config, k1, Flux, 0);
+            // mesh.updateFlux(k1, Flux, config.v0, config.c0, config.rho0);
+            // numStep(mesh, config, k1, Flux, 0);
+            mesh.updatezkFlux(k1, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            zknumStep(mesh, config, k1, Flux, 0);
             // sourcenumStep(mesh, config, k1, Flux, 0, t, srcIndices);
             for (int eq = 0; eq < u.size(); ++eq)
                 eigen::plusTimes(k2[eq].data(), k1[eq].data(), 0.5, numNodes);
             /** [2] Step R-K */
-            mesh.updateFlux(k2, Flux, config.v0, config.c0, config.rho0);
-            numStep(mesh, config, k2, Flux, 0);
+            // mesh.updateFlux(k2, Flux, config.v0, config.c0, config.rho0);
+            // numStep(mesh, config, k2, Flux, 0);
+            mesh.updatezkFlux(k2, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            zknumStep(mesh, config, k2, Flux, 0);
             // sourcenumStep(mesh, config, k2, Flux, 0, t, srcIndices);
             for (int eq = 0; eq < u.size(); ++eq)
                 eigen::plusTimes(k3[eq].data(), k2[eq].data(), 0.5, numNodes);
             /** [3] Step R-K */
-            mesh.updateFlux(k3, Flux, config.v0, config.c0, config.rho0);
-            numStep(mesh, config, k3, Flux, 0);
+            // mesh.updateFlux(k3, Flux, config.v0, config.c0, config.rho0);
+            // numStep(mesh, config, k3, Flux, 0);
+            mesh.updatezkFlux(k3, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            zknumStep(mesh, config, k3, Flux, 0);
             // sourcenumStep(mesh, config, k3, Flux, 0, t, srcIndices);
             for (int eq = 0; eq < u.size(); ++eq)
                 eigen::plusTimes(k4[eq].data(), k3[eq].data(), 1, numNodes);
             /** [4] Step R-K */
-            mesh.updateFlux(k4, Flux, config.v0, config.c0, config.rho0);
-            numStep(mesh, config, k4, Flux, 0);
+            // mesh.updateFlux(k4, Flux, config.v0, config.c0, config.rho0);
+            // numStep(mesh, config, k4, Flux, 0);
+            mesh.updatezkFlux(k4, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            zknumStep(mesh, config, k4, Flux, 0);
             // sourcenumStep(mesh, config, k4, Flux, 0, t, srcIndices);
             /** Concat results of R-K iterations */
             // #pragma omp parallel for

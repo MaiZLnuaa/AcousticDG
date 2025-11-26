@@ -61,6 +61,9 @@ int main(int argc, char **argv)
         RestartSimulation::restartsimulation(resartFileName, pressure_value, velocity_value);
 
         std::vector<std::vector<double>> u(4, std::vector<double>(mesh.getNumNodes(), 0));
+        
+        // PML auxiliary variable
+        std::vector<std::vector<double>> pml_phi(3, std::vector<double>(mesh.getNumNodes(), 0));
 
         
         for (int n = 0; n < mesh.getNumNodes(); n++)
@@ -79,7 +82,7 @@ int main(int argc, char **argv)
         * Start solver
         */
         if (config.timeIntMethod == "Euler1")
-            solver::forwardEuler(u, mesh, config);
+            solver::forwardEuler(u, mesh, config, pml_phi);
         else if (config.timeIntMethod == "Runge-Kutta")
             solver::rungeKutta(u, mesh, config);
         else Fatal_Error("Time integration method error")    
@@ -109,11 +112,15 @@ int main(int argc, char **argv)
             }
         }
 
+        // PML auxiliary variable
+        std::vector<std::vector<double>> pml_phi(3, std::vector<double>(mesh.getNumNodes(), 0));
+    
+
         /**
         * Start solver
         */
         if (config.timeIntMethod == "Euler1")
-            solver::forwardEuler(u, mesh, config);
+            solver::forwardEuler(u, mesh, config, pml_phi);
         else if (config.timeIntMethod == "Runge-Kutta")
             solver::rungeKutta(u, mesh, config);
         else Fatal_Error("Time integration method error")    
@@ -121,6 +128,18 @@ int main(int argc, char **argv)
     
 
 
+    if (!config.porousParams.empty())
+    {
+        std::cout << "Porous media parameters: " << std::endl;
+        std::cout << "Porosity: " << config.porousParams[0][0] << " , " <<
+                     "Tortuosity: " << config.porousParams[0][1] << " , " <<
+                     "Resistivity: " << config.porousParams[0][2] << " , " <<
+                     "Gamma: " << config.porousParams[0][3] << std::endl;
+    }
+    else
+    {
+        std::cout << "No porous media parameters found!" << std::endl;
+    }
     
 
     // /**

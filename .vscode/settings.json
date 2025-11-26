@@ -79,7 +79,9 @@
         "core": "cpp",
         "execution": "cpp",
         "sparse": "cpp",
-        "dense": "cpp"
+        "dense": "cpp",
+        "shared_mutex": "cpp",
+        "cfenv": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

@@ -18,5 +18,6 @@ echo "Start computations"
 #build/bin/dgalerkin cases/2d_hilltop/rectangle.json
 #build/bin/dgalerkin cases/2d_hilltop/bump.json
 
-build/bin/dgalerkin doc/config/Gaussian2d.conf
-# build/bin/dgalerkin doc/config/Gaussian3d.conf
+# build/bin/dgalerkin doc/config/Gaussian2d.conf
+build/bin/dgalerkin doc/config/PML_Gaussian2d.conf
+# build/bin/dgalerkin doc/config/Gaussian3d.confcl

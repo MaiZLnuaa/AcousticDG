@@ -28,7 +28,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -fopenmp")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -fopenmp")
 
 ADD_EXECUTABLE(dgalerkin ${SRCS})
-TARGET_LINK_LIBRARIES(dgalerkin ${GMSH_LIBRARIES} ${LAPACKBLAS_LIBRARIES} ${VTK_LIBRARIES}  -fopenmp -lpthread -lwave -lfftw3) #-ltbb
+TARGET_LINK_LIBRARIES(dgalerkin ${GMSH_LIBRARIES} ${LAPACKBLAS_LIBRARIES} ${VTK_LIBRARIES}  -fopenmp -lpthread -lwave -lfftw3 -ltbb) #-ltbb
 
 vtk_module_autoinit(
 	TARGETS dgalerkin

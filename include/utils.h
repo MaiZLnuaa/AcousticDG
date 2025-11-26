@@ -142,6 +142,8 @@ namespace eigen
 
     void minus(double *A, double *B, int N);
 
+    void minusFromZero(double *A, double *B, int N);
+
     void plus(double *A, double *B, int N);
 
     void plusTimes(double *A, double *B, double c, int N);
