@@ -214,6 +214,20 @@ namespace config
                     std::vector<double> porous_param = {porosity, tortuosity, resistivity, gamma};
                     config.porousParams.push_back(porous_param);
                 }
+                else if (key.find("pmlparm") == 0)
+                {
+                    std::vector<std::string> sep = split(iter->second, ',');
+                    double dpml = std::stod(sep[0]);
+                    double xmin = std::stod(sep[1]);
+                    double ymin = std::stod(sep[2]);
+                    double zmin = std::stod(sep[3]);
+                    double xmax = std::stod(sep[4]);
+                    double ymax = std::stod(sep[5]);
+                    double zmax = std::stod(sep[6]);
+                    std::vector<double> pml_param = {dpml, xmin, ymin, zmin, xmax, ymax, zmax};
+                    config.pmlParams.push_back(pml_param);
+                }
+                
             }
 
             std::string physName;

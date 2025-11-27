@@ -113,6 +113,9 @@ struct Config
     // Porous material parameters
     std::vector<std::vector<double>> porousParams;
 
+    // PML parameters
+    std::vector<std::vector<double>> pmlParams;
+
     // Save file
     // std::string saveFile = "results.msh";
 

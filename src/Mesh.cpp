@@ -1966,11 +1966,17 @@ void Mesh::print_vector(std::vector<T> &vector) {
 void Mesh::computeSigma() 
 {
     double c0 = config.c0;
-    double d_pml = 3.0;  // PML厚度
+    double d_pml = config.pmlParams[0][0];  // PML厚度
     double R_ref = 1e-6;
     int m = 2;
     double sigma_max = -(m + 1.0) * c0 / (2.0 * d_pml) * std::log(R_ref);
-    printf("std::log10(R_ref): %f\n", std::log(R_ref));
+    double x_min = config.pmlParams[0][1];
+    double y_min = config.pmlParams[0][2];
+    double z_min = config.pmlParams[0][3];
+    double x_max = config.pmlParams[0][4];
+    double y_max = config.pmlParams[0][5];
+    double z_max = config.pmlParams[0][6];
+    // printf("std::log10(R_ref): %f\n", std::log(R_ref));
     // double sigma_max = -c0 / (2.0 * d_pml) * std::log(R_ref);
 
     m_elsigmax.assign(m_elNum, 0.0);
@@ -2026,8 +2032,8 @@ void Mesh::computeSigma()
         y_centroid /= m_elNumNodes;
 
         double sigma_x = 0.0, sigma_y = 0.0, sigma_z = 0.0;
-        double x_min = -7.5, x_max = 7.5, y_min = -2.5, y_max = 2.5;
-
+        // double x_min = -7.5, x_max = 7.5, y_min = -2.5, y_max = 2.5;
+        
         if (PML_BottomLeft_Elements.count(m_elTags[el]))
         {
             double distx = std::clamp(abs(x_centroid - x_min), 0.0, d_pml);
