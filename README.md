@@ -16,6 +16,8 @@ The solver is based on [GMSH](http://gmsh.info/) library and supports a wide ran
 - Complex geometry and unstructured grid (only triangles (2D) and tetrahedrons (3D) elements are supported)
 - VTK post-processing (use [Paraview](https://www.paraview.org/)) 
 - User defined obervers position post-processing (text data time variables, Fast Fourier Transform, Pressure Power Spectral Density and sound 'wave' files)
+- Add a ZK model to solve for sound propagation in porous media.
+- Added PML absorption boundary
 
 <!-- | Auditorium     | Isosurfaces     | Bulk|
 | ------------- |:-------------:| :-------------:| 

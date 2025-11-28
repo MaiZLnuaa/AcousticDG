@@ -2031,7 +2031,7 @@ void Mesh::computeSigma()
         x_centroid /= m_elNumNodes;
         y_centroid /= m_elNumNodes;
 
-        double sigma_x = 0.0, sigma_y = 0.0, sigma_z = 0.0;
+        // double sigma_x = 0.0, sigma_y = 0.0, sigma_z = 0.0;
         // double x_min = -7.5, x_max = 7.5, y_min = -2.5, y_max = 2.5;
         
         if (PML_BottomLeft_Elements.count(m_elTags[el]))

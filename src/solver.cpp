@@ -27,7 +27,6 @@ namespace solver
     std::vector<double> eldampingPvector;
     std::vector<double> elAuxiliaryTerm1Vector;
     std::vector<double> elAuxiliaryTerm2Vector;
-    std::vector<std::vector<double>> u_old(4, std::vector<double>(numNodes, 0.0));
     std::vector<std::vector<std::vector<double>>> Flux;
 
     std::vector<std::vector<float>> data4wave;
@@ -70,19 +69,20 @@ namespace solver
                  std::vector<std::vector<std::vector<double>>> &Flux, double beta)
     {
 
+        std::vector<std::vector<double>> u_old(4, std::vector<double>(mesh.getNumNodes(), 0.0));
         for (int eq = 0; eq < 4; ++eq)
         {
             // mesh.precomputeFlux(u[eq], Flux[eq], eq);
             mesh.newprecomputeFlux(u[eq], Flux[eq], eq, u[1], u[2], u[3]);
             u_old[eq] = u[eq];
 
-#pragma omp parallel for schedule(static) firstprivate(elFlux, elStiffvector, eldampingPvector, elAuxiliaryTerm1Vector, elAuxiliaryTerm2Vector) num_threads(config.numThreads)
+#pragma omp parallel for schedule(static) firstprivate(elFlux, elStiffvector, eldampingPvector) num_threads(config.numThreads)
             for (int el = 0; el < mesh.getElNum(); ++el)
             {
 
                 mesh.getElFlux(el, elFlux.data());
                 mesh.getElStiffVector(el, Flux[eq], u[eq], elStiffvector.data()); // 获得 S_k
-                mesh.getDampingPressureVector(eq, el, u[eq], pml_phi, eldampingPvector.data());
+                mesh.getDampingPressureVector(eq, el, u[eq], pml_phi, eldampingPvector.data()); // 获得 dampingP_k
                 eigen::minus(elStiffvector.data(), elFlux.data(), elNumNodes); // S_k - F_k
                 eigen::minus(elStiffvector.data(), eldampingPvector.data(), elNumNodes); // S_k - F_k - dampingP_k
                 eigen::linEq(&mesh.elMassMatrix(el), &elStiffvector[0], &u[eq][el * elNumNodes],
@@ -142,9 +142,10 @@ namespace solver
         }
     }
 
-    void pmlzknumStep(Mesh &mesh, Config config, std::vector<std::vector<double>> &u, std::vector<std::vector<double>> &pml_phi,
-                 std::vector<std::vector<std::vector<double>>> &Flux, double beta)
+    void pmlzknumStep(Mesh &mesh, Config config, std::vector<std::vector<double>> &u, std::vector<std::vector<double>> &pml_phi, 
+                    std::vector<std::vector<std::vector<double>>> &Flux, double beta)
     {
+        std::vector<std::vector<double>> u_old(4, std::vector<double>(mesh.getNumNodes(), 0.0));
 
         // porous media parameters
         double porosity = config.porousParams[0][0];
@@ -171,26 +172,26 @@ namespace solver
                 eigen::linEq(&mesh.elMassMatrix(el), &elStiffvector[0], &u[eq][el * elNumNodes],
                              config.timeStep, beta, elNumNodes); // 求 u[t+1] = beta * u[t] + dt * M^-1 * (S_k - F_k - H_k - dampingP_k)
             }
+        }
 
-            for (int eq = 0; eq < 3; eq++)
+        for (int eq = 0; eq < 3; eq++)
+        {
+            int velEq = eq + 1;
+#pragma omp parallel for schedule(static) firstprivate(elAuxiliaryTerm1Vector, elAuxiliaryTerm2Vector) num_threads(config.numThreads)
+            for (int el = 0; el < mesh.getElNum(); el++)
             {
-                int velEq = eq + 1;
-                #pragma omp parallel for schedule(static) firstprivate(elAuxiliaryTerm1Vector, elAuxiliaryTerm2Vector) num_threads(config.numThreads)
-                for (int el = 0; el < mesh.getElNum(); el++)
+                if (!mesh.isPML(mesh.elTag(el)))
                 {
-                    if (!mesh.isPML(mesh.elTag(el)))
-                    {
-                        continue;
-                    }
-                    mesh.getAuxiliaryEquationTerm1(eq, el, pml_phi, elAuxiliaryTerm1Vector.data());
-                    mesh.getAuxiliaryEquationTerm2(eq, el, u[velEq], u_old[velEq], pml_phi, elAuxiliaryTerm2Vector.data());
-                    eigen::minusFromZero(elAuxiliaryTerm1Vector.data(), elAuxiliaryTerm1Vector.data(), elNumNodes); // - Term1_k
-                    eigen::plus(elAuxiliaryTerm1Vector.data(), elAuxiliaryTerm2Vector.data(), elNumNodes); // + Term2_k
-                    eigen::linEq(&mesh.elMassMatrix(el), &elAuxiliaryTerm1Vector[0], &pml_phi[eq][el * elNumNodes],
-                                 config.timeStep, beta, elNumNodes); // 求 pml_phi[t+1] = beta * pml_phi[t] + dt * M^-1 * Term1_k
+                    continue;
                 }
-                
+                mesh.getAuxiliaryEquationTerm1(eq, el, pml_phi, elAuxiliaryTerm1Vector.data());
+                mesh.getAuxiliaryEquationTerm2(eq, el, u[velEq], u_old[velEq], pml_phi, elAuxiliaryTerm2Vector.data());
+                eigen::minusFromZero(elAuxiliaryTerm1Vector.data(), elAuxiliaryTerm1Vector.data(), elNumNodes); // - Term1_k
+                eigen::plus(elAuxiliaryTerm1Vector.data(), elAuxiliaryTerm2Vector.data(), elNumNodes); // + Term2_k
+                eigen::linEq(&mesh.elMassMatrix(el), &elAuxiliaryTerm1Vector[0], &pml_phi[eq][el * elNumNodes],
+                                config.timeStep, beta, elNumNodes); // 求 pml_phi[t+1] = beta * pml_phi[t] + dt * M^-1 * Term1_k
             }
+            
         }
     }
 
@@ -237,9 +238,7 @@ namespace solver
         eldampingPvector.resize(elNumNodes, 0.0);
         elAuxiliaryTerm1Vector.resize(elNumNodes, 0.0);
         elAuxiliaryTerm2Vector.resize(elNumNodes, 0.0);
-        Flux = std::vector<std::vector<std::vector<double>>>(4,
-                                                             std::vector<std::vector<double>>(mesh.getNumNodes(),
-                                                                                              std::vector<double>(3)));
+        Flux = std::vector<std::vector<std::vector<double>>>(4, std::vector<std::vector<double>>(mesh.getNumNodes(), std::vector<double>(3)));
 
         /** Gmsh save init */
         gmsh::model::list(g_names);
@@ -423,7 +422,8 @@ namespace solver
             /**
              * First Order Euler
              */
-            mesh.updateFlux(u, Flux, config.v0, config.c0, config.rho0);
+            // mesh.updateFlux(u, Flux, config.v0, config.c0, config.rho0);
+            mesh.updatezkFlux(u, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
             // numStep(mesh, config, u, Flux, 1);
             // pmlnumStep(mesh, config, u, pml_phi, Flux, 1);
             pmlzknumStep(mesh, config, u, pml_phi, Flux, 1);
