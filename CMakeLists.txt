@@ -1,6 +1,6 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.18+)
 set(CMAKE_CUDA_COMPILER "/usr/local/cuda-12.8/bin/nvcc" CACHE FILEPATH "CUDA compiler")
-PROJECT(DGalerkin VERSION 1.3.6 LANGUAGES CXX CUDA)
+PROJECT(DGalerkin VERSION 1.3.6 LANGUAGES CXX )
 
 # put all generated files in a single folder (required in windows for exe linked to dlls)
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin CACHE PATH "")
