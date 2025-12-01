@@ -22,7 +22,7 @@ namespace solver
      * @param mesh
      * @param config
      */
-    void rungeKutta(std::vector<std::vector<double>> &u, Mesh &mesh, Config config);
+    void rungeKutta(std::vector<std::vector<double>> &u, Mesh &mesh, Config config, std::vector<std::vector<double>> &phi);
 
     // std::vector<std::vector<float>> data4wave;
 

@@ -507,7 +507,7 @@ namespace solver
      * @param mesh
      * @param config
      */
-    void rungeKutta(std::vector<std::vector<double>> &u, Mesh &mesh, Config config)
+    void rungeKutta(std::vector<std::vector<double>> &u, Mesh &mesh, Config config, std::vector<std::vector<double>> &pml_phi)
     {
 
         /** Memory allocation */
@@ -517,8 +517,12 @@ namespace solver
         elFlux.resize(elNumNodes);
         elStiffvector.resize(elNumNodes);
         elZKHvector.resize(elNumNodes, 0.0);
+        eldampingPvector.resize(elNumNodes, 0.0);
+        elAuxiliaryTerm1Vector.resize(elNumNodes, 0.0);
+        elAuxiliaryTerm2Vector.resize(elNumNodes, 0.0);
         elSourceVector.resize(elNumNodes);
         std::vector<std::vector<double>> k1, k2, k3, k4;
+        std::vector<std::vector<double>> h1, h2, h3, h4;
         Flux = std::vector<std::vector<std::vector<double>>>(4,
                                                              std::vector<std::vector<double>>(mesh.getNumNodes(),
                                                                                               std::vector<double>(3)));
@@ -536,6 +540,9 @@ namespace solver
         screen_display::write_string("\t>>> Precomputation", BLUE);
         mesh.precomputeMassMatrix();
         screen_display::write_string("\t>>> precomputeMassMatrix", BLUE);
+
+        /** ComputeSigma */
+        mesh.computeSigma();
 
         /** Source */
         std::vector<std::vector<int>> srcIndices;
@@ -735,35 +742,46 @@ namespace solver
              *          u += (k1 + 2*k2 + 2*k3 + k4)/6
              */
             k1 = k2 = k3 = k4 = u;
+            h1 = h2 = h3 = h4 = pml_phi;
             /** [1] Step R-K */
-            // mesh.updateFlux(k1, Flux, config.v0, config.c0, config.rho0);
+            mesh.updateFlux(k1, Flux, config.v0, config.c0, config.rho0);
             // numStep(mesh, config, k1, Flux, 0);
-            mesh.updatezkFlux(k1, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
-            zknumStep(mesh, config, k1, Flux, 0);
+            // mesh.updatezkFlux(k1, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            // zknumStep(mesh, config, k1, Flux, 0);
+            pmlnumStep(mesh, config, k1, h1, Flux, 0);
             // sourcenumStep(mesh, config, k1, Flux, 0, t, srcIndices);
             for (int eq = 0; eq < u.size(); ++eq)
                 eigen::plusTimes(k2[eq].data(), k1[eq].data(), 0.5, numNodes);
+            for (int eq = 0; eq < pml_phi.size(); eq++)
+                eigen::plusTimes(h2[eq].data(), h1[eq].data(), 0.5, numNodes);
             /** [2] Step R-K */
-            // mesh.updateFlux(k2, Flux, config.v0, config.c0, config.rho0);
+            mesh.updateFlux(k2, Flux, config.v0, config.c0, config.rho0);
             // numStep(mesh, config, k2, Flux, 0);
-            mesh.updatezkFlux(k2, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
-            zknumStep(mesh, config, k2, Flux, 0);
+            // mesh.updatezkFlux(k2, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            // zknumStep(mesh, config, k2, Flux, 0);
+            pmlnumStep(mesh, config, k2, h2, Flux, 0);
             // sourcenumStep(mesh, config, k2, Flux, 0, t, srcIndices);
             for (int eq = 0; eq < u.size(); ++eq)
                 eigen::plusTimes(k3[eq].data(), k2[eq].data(), 0.5, numNodes);
+            for (int eq = 0; eq < pml_phi.size(); eq++)
+                eigen::plusTimes(h3[eq].data(), h2[eq].data(), 0.5, numNodes);
             /** [3] Step R-K */
-            // mesh.updateFlux(k3, Flux, config.v0, config.c0, config.rho0);
+            mesh.updateFlux(k3, Flux, config.v0, config.c0, config.rho0);
             // numStep(mesh, config, k3, Flux, 0);
-            mesh.updatezkFlux(k3, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
-            zknumStep(mesh, config, k3, Flux, 0);
+            // mesh.updatezkFlux(k3, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            // zknumStep(mesh, config, k3, Flux, 0);
+            pmlnumStep(mesh, config, k3, h3, Flux, 0);
             // sourcenumStep(mesh, config, k3, Flux, 0, t, srcIndices);
             for (int eq = 0; eq < u.size(); ++eq)
                 eigen::plusTimes(k4[eq].data(), k3[eq].data(), 1, numNodes);
+            for (int eq = 0; eq < pml_phi.size(); eq++)
+                eigen::plusTimes(h4[eq].data(), h3[eq].data(), 1, numNodes);
             /** [4] Step R-K */
-            // mesh.updateFlux(k4, Flux, config.v0, config.c0, config.rho0);
+            mesh.updateFlux(k4, Flux, config.v0, config.c0, config.rho0);
             // numStep(mesh, config, k4, Flux, 0);
-            mesh.updatezkFlux(k4, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
-            zknumStep(mesh, config, k4, Flux, 0);
+            // mesh.updatezkFlux(k4, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            // zknumStep(mesh, config, k4, Flux, 0);
+            pmlnumStep(mesh, config, k4, h4, Flux, 0);
             // sourcenumStep(mesh, config, k4, Flux, 0, t, srcIndices);
             /** Concat results of R-K iterations */
             // #pragma omp parallel for
@@ -773,6 +791,14 @@ namespace solver
                 {
                     // #pragma omp atomic
                     u[eq][i] += (k1[eq][i] + 2 * k2[eq][i] + 2 * k3[eq][i] + k4[eq][i]) / 6.0;
+                }
+            }
+            for (int eq = 0; eq < pml_phi.size(); eq++)
+            {
+                for (int i = 0; i < numNodes; ++i)
+                {
+                    // #pragma omp atomic
+                    pml_phi[eq][i] += (h1[eq][i] + 2 * h2[eq][i] + 2 * h3[eq][i] + h4[eq][i]) / 6.0;
                 }
             }
 

@@ -84,7 +84,7 @@ int main(int argc, char **argv)
         if (config.timeIntMethod == "Euler1")
             solver::forwardEuler(u, mesh, config, pml_phi);
         else if (config.timeIntMethod == "Runge-Kutta")
-            solver::rungeKutta(u, mesh, config);
+            solver::rungeKutta(u, mesh, config, pml_phi);
         else Fatal_Error("Time integration method error")    
     }else
     {
@@ -122,7 +122,7 @@ int main(int argc, char **argv)
         if (config.timeIntMethod == "Euler1")
             solver::forwardEuler(u, mesh, config, pml_phi);
         else if (config.timeIntMethod == "Runge-Kutta")
-            solver::rungeKutta(u, mesh, config);
+            solver::rungeKutta(u, mesh, config, pml_phi);
         else Fatal_Error("Time integration method error")    
     }
     
