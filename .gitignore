@@ -19,3 +19,5 @@ save_results/
 *.csv
 *.txt
 *.png
+
+./vscode/launch.json

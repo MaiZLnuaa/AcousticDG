@@ -2162,11 +2162,13 @@ void Mesh::getAuxiliaryEquationTerm1(const size_t eq, const size_t el, std::vect
 }
 
 void Mesh::getAuxiliaryEquationTerm2(const size_t eq, const size_t el, std::vector<double> &u, std::vector<double> &u_old, std::vector<std::vector<double>> &pml_phi, double *elAuxiliaryTerm2Vector) 
+{
+    double rho0 = config.rho0;
+    double c0 = config.c0;
+    double dt = config.timeStep;
+    int jId;
+    if (config.timeIntMethod == "Euler1")
     {
-        double rho0 = config.rho0;
-        double c0 = config.c0;
-        double dt = config.timeStep;
-        int jId;
         for (int i = 0; i < m_elNumNodes; i++)
         {
             elAuxiliaryTerm2Vector[i] = 0.0;
@@ -2191,6 +2193,37 @@ void Mesh::getAuxiliaryEquationTerm2(const size_t eq, const size_t el, std::vect
             }
         }
     }
+    else if (config.timeIntMethod == "Runge-Kutta")
+    {
+        for (int i = 0; i < m_elNumNodes; i++)
+        {
+            elAuxiliaryTerm2Vector[i] = 0.0;
+            for (int j = 0; j < m_elNumNodes; j++)
+            {
+                jId = el * m_elNumNodes + j;
+                for (int g = 0; g < m_elNumIntPts; g++)
+                {
+                    if (eq == 0)
+                    {
+                        elAuxiliaryTerm2Vector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * (rho0 * c0 * c0) * (m_elsigmax[el] - m_elsigmay[el] - m_elsigmaz[el]) * u[jId] / dt;
+                    }
+                    else if (eq == 1)
+                    {
+                        elAuxiliaryTerm2Vector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * (rho0 * c0 * c0) * (-m_elsigmax[el] + m_elsigmay[el] - m_elsigmaz[el]) * u[jId] / dt;
+                    }
+                    else if (eq == 2)
+                    {
+                        elAuxiliaryTerm2Vector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * (rho0 * c0 * c0) * (-m_elsigmax[el] - m_elsigmay[el] + m_elsigmaz[el]) * u[jId] / dt;
+                    }
+                }
+            }
+        }
+    }
+    
+    
+    
+
+}
 
 
 

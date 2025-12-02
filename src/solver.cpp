@@ -65,8 +65,8 @@ namespace solver
         }
     }
 
-    void pmlnumStep(Mesh &mesh, Config config, std::vector<std::vector<double>> &u, std::vector<std::vector<double>> &pml_phi,
-                 std::vector<std::vector<std::vector<double>>> &Flux, double beta)
+    void pmlnumStep(Mesh &mesh, Config config, std::vector<std::vector<double>> &u, 
+                    std::vector<std::vector<double>> &pml_phi, std::vector<std::vector<std::vector<double>>> &Flux, double beta)
     {
 
         std::vector<std::vector<double>> u_old(4, std::vector<double>(mesh.getNumNodes(), 0.0));
@@ -422,11 +422,11 @@ namespace solver
             /**
              * First Order Euler
              */
-            // mesh.updateFlux(u, Flux, config.v0, config.c0, config.rho0);
-            mesh.updatezkFlux(u, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            mesh.updateFlux(u, Flux, config.v0, config.c0, config.rho0);
+            // mesh.updatezkFlux(u, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
             // numStep(mesh, config, u, Flux, 1);
-            // pmlnumStep(mesh, config, u, pml_phi, Flux, 1);
-            pmlzknumStep(mesh, config, u, pml_phi, Flux, 1);
+            pmlnumStep(mesh, config, u, pml_phi, Flux, 1);
+            // pmlzknumStep(mesh, config, u, pml_phi, Flux, 1);
 
             /**
              * Compute residuals
@@ -523,9 +523,7 @@ namespace solver
         elSourceVector.resize(elNumNodes);
         std::vector<std::vector<double>> k1, k2, k3, k4;
         std::vector<std::vector<double>> h1, h2, h3, h4;
-        Flux = std::vector<std::vector<std::vector<double>>>(4,
-                                                             std::vector<std::vector<double>>(mesh.getNumNodes(),
-                                                                                              std::vector<double>(3)));
+        Flux = std::vector<std::vector<std::vector<double>>>(4, std::vector<std::vector<double>>(mesh.getNumNodes(), std::vector<double>(3)));
 
         /** Gmsh save init */
         gmsh::model::list(g_names);
