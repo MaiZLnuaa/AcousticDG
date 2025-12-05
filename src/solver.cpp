@@ -256,6 +256,86 @@ namespace solver
         }
     }
 
+    void pmljcanumStep(Mesh &mesh, Config config, std::vector<std::vector<double>> &u, 
+                    std::vector<std::vector<double>> &jca_phi, std::vector<std::vector<double>> &pml_phi, std::vector<std::vector<std::vector<double>>> &Flux, double beta)
+    {
+
+        // porous media parameters
+        double porosity = config.jcaPorousParams[0][0];
+        double tortuosity = config.jcaPorousParams[0][1];
+        double resistivity = config.jcaPorousParams[0][2];
+        double gamma = config.jcaPorousParams[0][3];
+        double viscousLength = config.jcaPorousParams[0][4];
+        double thermalLength = config.jcaPorousParams[0][5];
+        double prandtlNumber = config.jcaPorousParams[0][6];
+
+        std::vector<std::vector<double>> u_old(4, std::vector<double>(mesh.getNumNodes(), 0.0));
+        
+        for (int eq = 0; eq < 4; ++eq)
+        {
+            // mesh.precomputeFlux(u[eq], Flux[eq], eq);
+            mesh.newprecomputeFlux(u[eq], Flux[eq], eq, u[1], u[2], u[3]);
+            u_old[eq] = u[eq];
+
+#pragma omp parallel for schedule(static) firstprivate(elFlux, elStiffvector, eljcaPhiVector) num_threads(config.numThreads)
+            for (int el = 0; el < mesh.getElNum(); ++el)
+            {
+                mesh.getElFlux(el, elFlux.data());
+                mesh.getElStiffVector(el, Flux[eq], u[eq], elStiffvector.data()); // 获得 S_k
+                eigen::minus(elStiffvector.data(), elFlux.data(), elNumNodes); // S_k - F_k
+
+                mesh.getZKPorousHVector(el, eq, u[eq], elZKHvector.data(), porosity, tortuosity, resistivity, gamma); // 获得 H_k
+                eigen::minus(elStiffvector.data(), elZKHvector.data(), elNumNodes); // S_k - F_k - H_k
+
+                mesh.getjcaPorousPhiVector(el, eq, jca_phi, eljcaPhiVector.data()); // 获得 jca_phi_k
+                eigen::minus(elStiffvector.data(), eljcaPhiVector.data(), elNumNodes); // S_k - F_k - H_k - jca_phi_k
+
+                mesh.getDampingPressureVector(eq, el, u[eq], pml_phi, eldampingPvector.data());
+                eigen::minus(elStiffvector.data(), eldampingPvector.data(), elNumNodes); // S_k - F_k - H_k - jca_phi_k - dampingP_k
+
+                eigen::linEq(&mesh.elMassMatrix(el), &elStiffvector[0], &u[eq][el * elNumNodes],
+                             config.timeStep, beta, elNumNodes); // 求 u[t+1] = beta * u[t] + dt * M^-1 * (S_k - F_k - H_k - jca_phi_k)
+            }
+
+        }
+
+        for (int eq = 0; eq < 4; eq++)
+        {
+#pragma omp parallel for schedule(static) firstprivate(eljcaAuxiliaryTerm1Vector, eljcaAuxiliaryTerm2Vector) num_threads(config.numThreads)
+            for (int el = 0; el < mesh.getElNum(); el++)
+            {
+                mesh.getjcaAuxiliaryTerm1(eq, el, jca_phi, eljcaAuxiliaryTerm1Vector.data());
+                mesh.getjcaAuxiliaryTerm2(eq, el, u[eq], u_old[eq], jca_phi, eljcaAuxiliaryTerm2Vector.data());
+                eigen::minusFromZero(eljcaAuxiliaryTerm2Vector.data(), eljcaAuxiliaryTerm2Vector.data(), elNumNodes); // - Term2_k
+                eigen::plus(eljcaAuxiliaryTerm1Vector.data(), eljcaAuxiliaryTerm2Vector.data(), elNumNodes); // + Term1_k
+                eigen::linEq(&mesh.elMassMatrix(el), &eljcaAuxiliaryTerm1Vector[0], &jca_phi[eq][el * elNumNodes],
+                             config.timeStep, beta, elNumNodes); // 求 jca_phi[t+1] = beta * jca_phi[t] + dt * M^-1 * (Term1_k - Term2_k)
+            }
+            
+        }
+
+        for (int eq = 0; eq < 3; eq++)
+        {
+            int velEq = eq + 1;
+#pragma omp parallel for schedule(static) firstprivate(elAuxiliaryTerm1Vector, elAuxiliaryTerm2Vector) num_threads(config.numThreads)
+            for (int el = 0; el < mesh.getElNum(); el++)
+            {
+                if (!mesh.isPML(mesh.elTag(el)))
+                {
+                    continue;
+                }
+                mesh.getAuxiliaryEquationTerm1(eq, el, pml_phi, elAuxiliaryTerm1Vector.data());
+                mesh.getAuxiliaryEquationTerm2(eq, el, u[velEq], u_old[velEq], pml_phi, elAuxiliaryTerm2Vector.data());
+                eigen::minusFromZero(elAuxiliaryTerm1Vector.data(), elAuxiliaryTerm1Vector.data(), elNumNodes); // - Term1_k
+                eigen::plus(elAuxiliaryTerm1Vector.data(), elAuxiliaryTerm2Vector.data(), elNumNodes); // + Term2_k
+                eigen::linEq(&mesh.elMassMatrix(el), &elAuxiliaryTerm1Vector[0], &pml_phi[eq][el * elNumNodes],
+                                config.timeStep, beta, elNumNodes); // 求 pml_phi[t+1] = beta * pml_phi[t] + dt * M^-1 * Term1_k
+            }
+            
+        }
+        
+    }
+
     void sourcenumStep(Mesh &mesh, Config config, std::vector<std::vector<double>> &u,
                  std::vector<std::vector<std::vector<double>>> &Flux, double beta, double t, std::vector<std::vector<int>> srcIndices)
     {
@@ -491,7 +571,8 @@ namespace solver
             // numStep(mesh, config, u, Flux, 1);
             // pmlnumStep(mesh, config, u, pml_phi, Flux, 1);
             // pmlzknumStep(mesh, config, u, pml_phi, Flux, 1);
-            jcanumStep(mesh, config, u, jca_phi, Flux, 1);
+            // jcanumStep(mesh, config, u, jca_phi, Flux, 1);
+            pmljcanumStep(mesh, config, u, jca_phi, pml_phi, Flux, 1);
 
             /**
              * Compute residuals
@@ -812,13 +893,14 @@ namespace solver
             h1 = h2 = h3 = h4 = pml_phi;
             j1 = j2 = j3 = j4 = jca_phi;
             /** [1] Step R-K */
-            mesh.updateFlux(k1, Flux, config.v0, config.c0, config.rho0);
+            // mesh.updateFlux(k1, Flux, config.v0, config.c0, config.rho0);
             // numStep(mesh, config, k1, Flux, 0);
-            // mesh.updatezkFlux(k1, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            mesh.updatezkFlux(k1, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
             // zknumStep(mesh, config, k1, Flux, 0);
             // pmlnumStep(mesh, config, k1, h1, Flux, 0);
             // pmlzknumStep(mesh, config, k1, h1, Flux, 0);
-            jcanumStep(mesh, config, k1, j1, Flux, 0);
+            // jcanumStep(mesh, config, k1, j1, Flux, 0);
+            pmljcanumStep(mesh, config, k1, j1, h1, Flux, 0);
             // sourcenumStep(mesh, config, k1, Flux, 0, t, srcIndices);
             for (int eq = 0; eq < u.size(); ++eq)
                 eigen::plusTimes(k2[eq].data(), k1[eq].data(), 0.5, numNodes);
@@ -830,13 +912,14 @@ namespace solver
             }
             
             /** [2] Step R-K */
-            mesh.updateFlux(k2, Flux, config.v0, config.c0, config.rho0);
+            // mesh.updateFlux(k2, Flux, config.v0, config.c0, config.rho0);
             // numStep(mesh, config, k2, Flux, 0);
-            // mesh.updatezkFlux(k2, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            mesh.updatezkFlux(k2, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
             // zknumStep(mesh, config, k2, Flux, 0);
             // pmlnumStep(mesh, config, k2, h2, Flux, 0);
             // pmlzknumStep(mesh, config, k2, h2, Flux, 0);
-            jcanumStep(mesh, config, k2, j2, Flux, 0);
+            // jcanumStep(mesh, config, k2, j2, Flux, 0);
+            pmljcanumStep(mesh, config, k2, j2, h2, Flux, 0);
             // sourcenumStep(mesh, config, k2, Flux, 0, t, srcIndices);
             for (int eq = 0; eq < u.size(); ++eq)
                 eigen::plusTimes(k3[eq].data(), k2[eq].data(), 0.5, numNodes);
@@ -848,13 +931,14 @@ namespace solver
             }
             
             /** [3] Step R-K */
-            mesh.updateFlux(k3, Flux, config.v0, config.c0, config.rho0);
+            // mesh.updateFlux(k3, Flux, config.v0, config.c0, config.rho0);
             // numStep(mesh, config, k3, Flux, 0);
-            // mesh.updatezkFlux(k3, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            mesh.updatezkFlux(k3, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
             // zknumStep(mesh, config, k3, Flux, 0);
             // pmlnumStep(mesh, config, k3, h3, Flux, 0);
             // pmlzknumStep(mesh, config, k3, h3, Flux, 0);
-            jcanumStep(mesh, config, k3, j3, Flux, 0);
+            // jcanumStep(mesh, config, k3, j3, Flux, 0);
+            pmljcanumStep(mesh, config, k3, j3, h3, Flux, 0);
             // sourcenumStep(mesh, config, k3, Flux, 0, t, srcIndices);
             for (int eq = 0; eq < u.size(); ++eq)
                 eigen::plusTimes(k4[eq].data(), k3[eq].data(), 1, numNodes);
@@ -866,13 +950,14 @@ namespace solver
             }
             
             /** [4] Step R-K */
-            mesh.updateFlux(k4, Flux, config.v0, config.c0, config.rho0);
+            // mesh.updateFlux(k4, Flux, config.v0, config.c0, config.rho0);
             // numStep(mesh, config, k4, Flux, 0);
-            // mesh.updatezkFlux(k4, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            mesh.updatezkFlux(k4, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
             // zknumStep(mesh, config, k4, Flux, 0);
             // pmlnumStep(mesh, config, k4, h4, Flux, 0);
             // pmlzknumStep(mesh, config, k4, h4, Flux, 0);
-            jcanumStep(mesh, config, k4, j4, Flux, 0);
+            // jcanumStep(mesh, config, k4, j4, Flux, 0);
+            pmljcanumStep(mesh, config, k4, j4, h4, Flux, 0);
             // sourcenumStep(mesh, config, k4, Flux, 0, t, srcIndices);
             /** Concat results of R-K iterations */
             // #pragma omp parallel for
