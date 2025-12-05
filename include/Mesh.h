@@ -241,6 +241,10 @@ public:
     void getAuxiliaryEquationTerm1(const size_t eq, const size_t el, std::vector<std::vector<double>> &pml_phi, double *elAuxiliaryTerm1Vector);
     void getAuxiliaryEquationTerm2(const size_t eq, const size_t el, std::vector<double> &u, std::vector<double> &u_old, std::vector<std::vector<double>> &pml_phi, double *elAuxiliaryTerm2Vector);
 
+    void getjcaPorousPhiVector(const size_t eq, const size_t el, std::vector<std::vector<double>> &jca_phi, double *eljcaPhiVector);
+    void getjcaAuxiliaryTerm1(const size_t eq, const size_t el, std::vector<std::vector<double>> &jca_phi, double *eljcaAuxiliaryTerm1Vector);
+    void getjcaAuxiliaryTerm2(const size_t eq, const size_t el, std::vector<double> &u, std::vector<double> &u_old, std::vector<std::vector<double>> &jca_phi, double *eljcaAuxiliaryTerm2Vector);
+
     /** 
      * debug std::vector<T> &vector
      * print_vector(m_elFNodeTagsOrdered);

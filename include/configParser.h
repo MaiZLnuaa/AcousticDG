@@ -116,6 +116,9 @@ struct Config
     // PML parameters
     std::vector<std::vector<double>> pmlParams;
 
+    // JCA porous model parameters
+    std::vector<std::vector<double>> jcaPorousParams;
+
     // Save file
     // std::string saveFile = "results.msh";
 

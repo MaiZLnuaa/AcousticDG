@@ -13,7 +13,7 @@ namespace solver
      * @param mesh
      * @param config
      */
-    void forwardEuler(std::vector<std::vector<double>> &u, Mesh &mesh, Config config, std::vector<std::vector<double>> &phi);
+    void forwardEuler(std::vector<std::vector<double>> &u, Mesh &mesh, Config config, std::vector<std::vector<double>> &phi, std::vector<std::vector<double>> &jca_phi);
 
     /**
      * Solve using explicit Runge-Kutta integration method. O(h^4)
@@ -22,7 +22,7 @@ namespace solver
      * @param mesh
      * @param config
      */
-    void rungeKutta(std::vector<std::vector<double>> &u, Mesh &mesh, Config config, std::vector<std::vector<double>> &phi);
+    void rungeKutta(std::vector<std::vector<double>> &u, Mesh &mesh, Config config, std::vector<std::vector<double>> &phi, std::vector<std::vector<double>> &jca_phi);
 
     // std::vector<std::vector<float>> data4wave;
 

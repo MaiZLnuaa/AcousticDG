@@ -227,6 +227,20 @@ namespace config
                     std::vector<double> pml_param = {dpml, xmin, ymin, zmin, xmax, ymax, zmax};
                     config.pmlParams.push_back(pml_param);
                 }
+                else if (key.find("jcaporousparm") == 0)
+                {
+                    std::vector<std::string> sep = split(iter->second, ',');
+                    double porosity = std::stod(sep[0]);
+                    double tortuosity = std::stod(sep[1]);
+                    double resistivity = std::stod(sep[2]);
+                    double gamma = std::stod(sep[3]);
+                    double viscousLength = std::stod(sep[4]);
+                    double thermalLength = std::stod(sep[5]);
+                    double prandtlNumber = std::stod(sep[6]);
+                    std::vector<double> jca_porous_param = {porosity, tortuosity, resistivity, gamma, viscousLength, thermalLength, prandtlNumber};
+                    config.jcaPorousParams.push_back(jca_porous_param);
+                }
+                
                 
             }
 

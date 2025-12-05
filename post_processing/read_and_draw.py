@@ -14,8 +14,8 @@ import os
 import pandas as pd
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
-# mesh_file = os.path.join(this_dir, "new_result0.vtu")
-mesh_file = os.path.join(this_dir,  "../highorder_results", "result6000.vtu")
+mesh_file = os.path.join(this_dir, "new_result700.vtu")
+# mesh_file = os.path.join(this_dir,  "../highorder_results", "result6000.vtu")
 mesh = pv.read(mesh_file)
 
 

@@ -65,6 +65,9 @@ int main(int argc, char **argv)
         // PML auxiliary variable
         std::vector<std::vector<double>> pml_phi(3, std::vector<double>(mesh.getNumNodes(), 0));
 
+        // JCA porous model auxiliary variable
+        std::vector<std::vector<double>> jca_phi(4, std::vector<double>(mesh.getNumNodes(), 0));
+
         
         for (int n = 0; n < mesh.getNumNodes(); n++)
         {
@@ -82,9 +85,9 @@ int main(int argc, char **argv)
         * Start solver
         */
         if (config.timeIntMethod == "Euler1")
-            solver::forwardEuler(u, mesh, config, pml_phi);
+            solver::forwardEuler(u, mesh, config, pml_phi,jca_phi);
         else if (config.timeIntMethod == "Runge-Kutta")
-            solver::rungeKutta(u, mesh, config, pml_phi);
+            solver::rungeKutta(u, mesh, config, pml_phi, jca_phi);
         else Fatal_Error("Time integration method error")    
     }else
     {
@@ -114,15 +117,18 @@ int main(int argc, char **argv)
 
         // PML auxiliary variable
         std::vector<std::vector<double>> pml_phi(3, std::vector<double>(mesh.getNumNodes(), 0));
+
+        // JCA porous model auxiliary variable
+        std::vector<std::vector<double>> jca_phi(4, std::vector<double>(mesh.getNumNodes(), 0));
     
 
         /**
         * Start solver
         */
         if (config.timeIntMethod == "Euler1")
-            solver::forwardEuler(u, mesh, config, pml_phi);
+            solver::forwardEuler(u, mesh, config, pml_phi, jca_phi);
         else if (config.timeIntMethod == "Runge-Kutta")
-            solver::rungeKutta(u, mesh, config, pml_phi);
+            solver::rungeKutta(u, mesh, config, pml_phi, jca_phi);
         else Fatal_Error("Time integration method error")    
     }
     

@@ -2219,12 +2219,119 @@ void Mesh::getAuxiliaryEquationTerm2(const size_t eq, const size_t el, std::vect
             }
         }
     }
-    
-    
-    
-
 }
 
+void Mesh::getjcaPorousPhiVector(const size_t eq, const size_t el, std::vector<std::vector<double>> &jca_phi, double *eljcaPorousPhiVector)
+{
+    if (!isPorous(m_elTags[el]))
+        return;
+    
+    double rho0 = config.rho0;
+    double c0 = config.c0;
+    int jId;
+    for (int i = 0; i < m_elNumNodes; i++)
+    {
+        eljcaPorousPhiVector[i] = 0.0;
+        for (int j = 0; j < m_elNumNodes; j++)
+        {
+            jId = el * m_elNumNodes + j;
+            for (int g = 0; g < m_elNumIntPts; g++)
+            {
+                if (eq == 0)
+                {
+                    eljcaPorousPhiVector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * (config.jcaPorousParams[0][3] - 1) * jca_phi[eq][jId];
+                }
+                else if (eq == 1 || eq == 2 || eq == 3)
+                {
+                    eljcaPorousPhiVector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * jca_phi[eq][jId];
+                }
+            }
+        }
+    }
+}
 
+void Mesh::getjcaAuxiliaryTerm1(const size_t eq, const size_t el, std::vector<std::vector<double>> &jca_phi, double *eljcaAuxiliaryTerm1Vector)
+{
+    if (!isPorous(m_elTags[el]))
+        return;
+    double tau_u = 2 * config.rho0 * config.jcaPorousParams[0][1] / config.jcaPorousParams[0][0] / config.jcaPorousParams[0][2]; // 2*rho0*cs/sigma/Omega
+    double tau_e = config.jcaPorousParams[0][6] * pow((config.jcaPorousParams[0][5] / config.jcaPorousParams[0][4]), 2) * tau_u; // Pr*Sb^2*tau_u 
+    int jId;
+    for (int i = 0; i < m_elNumNodes; i++)
+    {
+        eljcaAuxiliaryTerm1Vector[i] = 0.0;
+        for (int j = 0; j < m_elNumNodes; j++)
+        {
+            jId = el * m_elNumNodes + j;
+            for (int g = 0; g < m_elNumIntPts; g++)
+            {
+                if (eq == 0)
+                {
+                    eljcaAuxiliaryTerm1Vector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * 2 / tau_e * jca_phi[0][jId];
+                }
+                else if (eq == 1 || eq == 2 || eq == 3)
+                {
+                    eljcaAuxiliaryTerm1Vector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * 2 / tau_u * jca_phi[eq][jId];
+                }
+            }
+        }
+    }
+}
+
+void Mesh::getjcaAuxiliaryTerm2(const size_t eq, const size_t el, std::vector<double> &u, std::vector<double> &u_old, std::vector<std::vector<double>> &jca_phi, double *eljcaAuxiliaryTerm2Vector) 
+{
+    if (!isPorous(m_elTags[el]))
+        return;
+    double rho0 = config.rho0;
+    double c0 = config.c0;
+    double dt = config.timeStep;
+    double tau_u = 2 * config.rho0 * config.jcaPorousParams[0][1] / config.jcaPorousParams[0][0] / config.jcaPorousParams[0][2]; // 2*rho0*cs/sigma/Omega
+    double tau_e = config.jcaPorousParams[0][6] * pow((config.jcaPorousParams[0][5] / config.jcaPorousParams[0][4]), 2) * tau_u; // Pr*Sb^2*tau_u 
+    int jId;
+    if (config.timeIntMethod == "Euler1")
+    {
+        for (int i = 0; i < m_elNumNodes; i++)
+        {
+            eljcaAuxiliaryTerm2Vector[i] = 0.0;
+            for (int j = 0; j < m_elNumNodes; j++)
+            {
+                jId = el * m_elNumNodes + j;
+                for (int g = 0; g < m_elNumIntPts; g++)
+                {
+                    if (eq == 0)
+                    {
+                        eljcaAuxiliaryTerm2Vector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * 2 / tau_e * (u[jId] - u_old[jId]) / dt;
+                    }
+                    else if (eq == 1 || eq == 2 || eq == 3)
+                    {
+                        eljcaAuxiliaryTerm2Vector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * 2 / tau_u * (u[jId] - u_old[jId]) / dt;
+                    }
+                }
+            }
+        }
+    }
+    else if (config.timeIntMethod == "Runge-Kutta")
+    {
+        for (int i = 0; i < m_elNumNodes; i++)
+        {
+            eljcaAuxiliaryTerm2Vector[i] = 0.0;
+            for (int j = 0; j < m_elNumNodes; j++)
+            {
+                jId = el * m_elNumNodes + j;
+                for (int g = 0; g < m_elNumIntPts; g++)
+                {
+                    if (eq == 0)
+                    {
+                        eljcaAuxiliaryTerm2Vector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * 2 / tau_e * u[jId] / dt;
+                    }
+                    else if (eq == 1 || eq == 2 || eq == 3)
+                    {
+                        eljcaAuxiliaryTerm2Vector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * 2 / tau_u * u[jId] / dt;
+                    }
+                }
+            }
+        }
+    }
+}
 
 

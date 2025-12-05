@@ -49,7 +49,7 @@ print("is 2D" if is_2D else "is 3D")
 if is_2D:
     xmin, ymin = points[:, 0].min(), points[:, 1].min()
     xmax, ymax = points[:, 0].max(), points[:, 1].max()
-    grid_x, grid_y = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
+    grid_x, grid_y = np.mgrid[xmin:xmax:1000j, ymin:ymax:1000j]
     interp_points = np.stack([grid_x.ravel(), grid_y.ravel()], axis=-1)
 else:
     xmin, ymin, zmin = points.min(axis=0)
