@@ -14,13 +14,6 @@
 
 namespace sources
 {
-    std::vector<int> findSourceNodesForOne(Mesh& mesh, Sources& source);
-
-    void applySourceForOne(std::vector<std::vector<double>>& u,
-                        const std::vector<int>& nodeIndices,
-                        Sources& source,
-                        double t);
-
-    void getElSourceVector(Config &config, Mesh &mesh, int eq, int el, double* elSourceVector, double t, const std::vector<std::vector<int>> &srcIndices);
+    void getElSourceVector(Config &config, Mesh &mesh, const size_t eq, const size_t el, double* elSourceVector, double t);
     
 } // namespace sources

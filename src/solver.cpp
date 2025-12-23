@@ -337,7 +337,7 @@ namespace solver
     }
 
     void sourcenumStep(Mesh &mesh, Config config, std::vector<std::vector<double>> &u,
-                 std::vector<std::vector<std::vector<double>>> &Flux, double beta, double t, std::vector<std::vector<int>> srcIndices)
+                 std::vector<std::vector<std::vector<double>>> &Flux, double beta, double t)
     {
 
         for (int eq = 0; eq < 4; ++eq)
@@ -351,14 +351,15 @@ namespace solver
 
                 mesh.getElFlux(el, elFlux.data());
                 mesh.getElStiffVector(el, Flux[eq], u[eq], elStiffvector.data()); // 获得 S_k
-                sources::getElSourceVector(config, mesh, eq, el, elSourceVector.data(), t, srcIndices);
+                sources::getElSourceVector(config, mesh, eq, el, elSourceVector.data(), t); // 获得 source_k
                 eigen::minus(elStiffvector.data(), elFlux.data(), elNumNodes); // S_k - F_k
-                eigen::plus(elStiffvector.data(),elSourceVector.data(),elNumNodes);
+                eigen::plus(elStiffvector.data(),elSourceVector.data(),elNumNodes); // S_k - F_k + source_k
                 eigen::linEq(&mesh.elMassMatrix(el), &elStiffvector[0], &u[eq][el * elNumNodes],
-                             config.timeStep, beta, elNumNodes); // 求 u[t+1] = beta * u[t] + dt * M^-1 * (S_k - F_k)
+                             config.timeStep, beta, elNumNodes); // 求 u[t+1] = beta * u[t] + dt * M^-1 * (S_k - F_k + source_k)
             }
         }
     }
+
     /**
      * Solve using forward explicit scheme. O(h)
      *
@@ -382,6 +383,7 @@ namespace solver
         eljcaAuxiliaryTerm1Vector.resize(elNumNodes, 0.0);
         eljcaAuxiliaryTerm2Vector.resize(elNumNodes, 0.0);
         eljcaPhiVector.resize(elNumNodes, 0.0);
+        elSourceVector.resize(elNumNodes, 0.0);
         Flux = std::vector<std::vector<std::vector<double>>>(4, std::vector<std::vector<double>>(mesh.getNumNodes(), std::vector<double>(3)));
 
         /** Gmsh save init */
@@ -485,6 +487,7 @@ namespace solver
             }
             std::cout << std::endl;
         }
+        std::cout << "Press Enter to start the simulation..." << std::endl;
         getchar(); // 暂停程序，按回车继续
 
         auto start = std::chrono::system_clock::now();
@@ -530,49 +533,50 @@ namespace solver
                 screen_display::write_string("time\t\tres_p\t\tres_rho\t\tres_vx\t\tres_vy\t\tres_vz\t\telapsed time", BOLDBLUE);
             }
 
-            /**
-             * Update Source
-             */
+            // /**
+            //  * Update Source
+            //  */
 
-            for (int src = 0; src < config.sources.size(); ++src)
-            {
-                if (config.sources[src].formula == "" && config.sources[src].data.empty())
-                {
-                    double amp = config.sources[src].source[5];
-                    double freq = config.sources[src].source[6];
-                    double phase = config.sources[src].source[7];
-                    double duration = config.sources[src].source[8];
-                    if (t < duration)
-                        for (int n = 0; n < srcIndices[src].size(); ++n)
-                            u[0][srcIndices[src][n]] = amp * sin(2 * M_PI * freq * t + phase);
-                }
-                else
-                {
-                    if (config.sources[src].data.empty())
-                    {
-                        double duration = config.sources[src].source[5];
-                        if (t < duration)
-                            for (int n = 0; n < srcIndices[src].size(); ++n)
-                                u[0][srcIndices[src][n]] = config.sources[src].value(t);
-                    }
-                    else
-                    {
-                        for (int n = 0; n < srcIndices[src].size(); ++n)
-                            u[0][srcIndices[src][n]] = config.sources[src].interpolate_value(t);
-                    }
-                }
-            }
+            // for (int src = 0; src < config.sources.size(); ++src)
+            // {
+            //     if (config.sources[src].formula == "" && config.sources[src].data.empty())
+            //     {
+            //         double amp = config.sources[src].source[5];
+            //         double freq = config.sources[src].source[6];
+            //         double phase = config.sources[src].source[7];
+            //         double duration = config.sources[src].source[8];
+            //         if (t < duration)
+            //             for (int n = 0; n < srcIndices[src].size(); ++n)
+            //                 u[0][srcIndices[src][n]] = amp * sin(2 * M_PI * freq * t + phase);
+            //     }
+            //     else
+            //     {
+            //         if (config.sources[src].data.empty())
+            //         {
+            //             double duration = config.sources[src].source[5];
+            //             if (t < duration)
+            //                 for (int n = 0; n < srcIndices[src].size(); ++n)
+            //                     u[0][srcIndices[src][n]] = config.sources[src].value(t);
+            //         }
+            //         else
+            //         {
+            //             for (int n = 0; n < srcIndices[src].size(); ++n)
+            //                 u[0][srcIndices[src][n]] = config.sources[src].interpolate_value(t);
+            //         }
+            //     }
+            // }
 
             /**
              * First Order Euler
              */
-            // mesh.updateFlux(u, Flux, config.v0, config.c0, config.rho0);
-            mesh.updatezkFlux(u, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            mesh.updateFlux(u, Flux, config.v0, config.c0, config.rho0);
+            // mesh.updatezkFlux(u, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
             // numStep(mesh, config, u, Flux, 1);
             // pmlnumStep(mesh, config, u, pml_phi, Flux, 1);
             // pmlzknumStep(mesh, config, u, pml_phi, Flux, 1);
             // jcanumStep(mesh, config, u, jca_phi, Flux, 1);
-            pmljcanumStep(mesh, config, u, jca_phi, pml_phi, Flux, 1);
+            // pmljcanumStep(mesh, config, u, jca_phi, pml_phi, Flux, 1);
+            sourcenumStep(mesh, config, u, Flux, 1, t);
 
             /**
              * Compute residuals
@@ -669,7 +673,7 @@ namespace solver
         eljcaAuxiliaryTerm1Vector.resize(elNumNodes, 0.0);
         eljcaAuxiliaryTerm2Vector.resize(elNumNodes, 0.0);
         eljcaPhiVector.resize(elNumNodes, 0.0);
-        elSourceVector.resize(elNumNodes);
+        elSourceVector.resize(elNumNodes, 0.0);
         std::vector<std::vector<double>> k1, k2, k3, k4;
         std::vector<std::vector<double>> h1, h2, h3, h4;
         std::vector<std::vector<double>> j1, j2, j3, j4;
@@ -712,9 +716,6 @@ namespace solver
             }
             srcIndices.push_back(indice);
         }
-        // std::vector<std::vector<int>> srcIndices;
-        // for (auto& src : config.sources)
-        //     srcIndices.push_back(sources::findSourceNodesForOne(mesh, src));
 
         /** Observer */
         std::vector<std::vector<int>> obsIndices;
@@ -765,6 +766,7 @@ namespace solver
             }
             std::cout << std::endl;
         }
+        std::cout << "Press Enter to start the simulation..." << std::endl;
         getchar(); // 暂停程序，按回车继续
 
         // for (int i = 0; i < obsIndices.size(); i++)
@@ -840,7 +842,7 @@ namespace solver
                 // mesh.writeVTK("result.vtk",u);
             }
 
-            /** Source */
+            /**Update Source */
             for (int src = 0; src < config.sources.size(); ++src)
             {
                 if (config.sources[src].formula == "" && config.sources[src].data.empty())
@@ -869,8 +871,7 @@ namespace solver
                     }
                 }
             }
-            // for (int i = 0; i < config.sources.size(); ++i)
-            //     sources::applySourceForOne(u, srcIndices[i], config.sources[i], t);
+
 
             /**
              * Fourth order Runge-Kutta algorithm
@@ -893,15 +894,15 @@ namespace solver
             h1 = h2 = h3 = h4 = pml_phi;
             j1 = j2 = j3 = j4 = jca_phi;
             /** [1] Step R-K */
-            // mesh.updateFlux(k1, Flux, config.v0, config.c0, config.rho0);
+            mesh.updateFlux(k1, Flux, config.v0, config.c0, config.rho0);
             // numStep(mesh, config, k1, Flux, 0);
-            mesh.updatezkFlux(k1, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            // mesh.updatezkFlux(k1, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
             // zknumStep(mesh, config, k1, Flux, 0);
             // pmlnumStep(mesh, config, k1, h1, Flux, 0);
             // pmlzknumStep(mesh, config, k1, h1, Flux, 0);
             // jcanumStep(mesh, config, k1, j1, Flux, 0);
-            pmljcanumStep(mesh, config, k1, j1, h1, Flux, 0);
-            // sourcenumStep(mesh, config, k1, Flux, 0, t, srcIndices);
+            // pmljcanumStep(mesh, config, k1, j1, h1, Flux, 0);
+            sourcenumStep(mesh, config, k1, Flux, 0, t);
             for (int eq = 0; eq < u.size(); ++eq)
                 eigen::plusTimes(k2[eq].data(), k1[eq].data(), 0.5, numNodes);
             for (int eq = 0; eq < pml_phi.size(); eq++)
@@ -912,15 +913,15 @@ namespace solver
             }
             
             /** [2] Step R-K */
-            // mesh.updateFlux(k2, Flux, config.v0, config.c0, config.rho0);
-            // numStep(mesh, config, k2, Flux, 0);
-            mesh.updatezkFlux(k2, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            mesh.updateFlux(k2, Flux, config.v0, config.c0, config.rho0);
+            numStep(mesh, config, k2, Flux, 0);
+            // mesh.updatezkFlux(k2, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
             // zknumStep(mesh, config, k2, Flux, 0);
             // pmlnumStep(mesh, config, k2, h2, Flux, 0);
             // pmlzknumStep(mesh, config, k2, h2, Flux, 0);
             // jcanumStep(mesh, config, k2, j2, Flux, 0);
-            pmljcanumStep(mesh, config, k2, j2, h2, Flux, 0);
-            // sourcenumStep(mesh, config, k2, Flux, 0, t, srcIndices);
+            // pmljcanumStep(mesh, config, k2, j2, h2, Flux, 0);
+            sourcenumStep(mesh, config, k2, Flux, 0, t);
             for (int eq = 0; eq < u.size(); ++eq)
                 eigen::plusTimes(k3[eq].data(), k2[eq].data(), 0.5, numNodes);
             for (int eq = 0; eq < pml_phi.size(); eq++)
@@ -931,15 +932,15 @@ namespace solver
             }
             
             /** [3] Step R-K */
-            // mesh.updateFlux(k3, Flux, config.v0, config.c0, config.rho0);
+            mesh.updateFlux(k3, Flux, config.v0, config.c0, config.rho0);
             // numStep(mesh, config, k3, Flux, 0);
-            mesh.updatezkFlux(k3, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            // mesh.updatezkFlux(k3, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
             // zknumStep(mesh, config, k3, Flux, 0);
             // pmlnumStep(mesh, config, k3, h3, Flux, 0);
             // pmlzknumStep(mesh, config, k3, h3, Flux, 0);
             // jcanumStep(mesh, config, k3, j3, Flux, 0);
-            pmljcanumStep(mesh, config, k3, j3, h3, Flux, 0);
-            // sourcenumStep(mesh, config, k3, Flux, 0, t, srcIndices);
+            // pmljcanumStep(mesh, config, k3, j3, h3, Flux, 0);
+            sourcenumStep(mesh, config, k3, Flux, 0, t);
             for (int eq = 0; eq < u.size(); ++eq)
                 eigen::plusTimes(k4[eq].data(), k3[eq].data(), 1, numNodes);
             for (int eq = 0; eq < pml_phi.size(); eq++)
@@ -950,15 +951,15 @@ namespace solver
             }
             
             /** [4] Step R-K */
-            // mesh.updateFlux(k4, Flux, config.v0, config.c0, config.rho0);
+            mesh.updateFlux(k4, Flux, config.v0, config.c0, config.rho0);
             // numStep(mesh, config, k4, Flux, 0);
-            mesh.updatezkFlux(k4, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
+            // mesh.updatezkFlux(k4, Flux, config.v0, config.c0, config.rho0, config.porousParams[0][0], config.porousParams[0][1], config.porousParams[0][2], config.porousParams[0][3]);
             // zknumStep(mesh, config, k4, Flux, 0);
             // pmlnumStep(mesh, config, k4, h4, Flux, 0);
             // pmlzknumStep(mesh, config, k4, h4, Flux, 0);
             // jcanumStep(mesh, config, k4, j4, Flux, 0);
-            pmljcanumStep(mesh, config, k4, j4, h4, Flux, 0);
-            // sourcenumStep(mesh, config, k4, Flux, 0, t, srcIndices);
+            // pmljcanumStep(mesh, config, k4, j4, h4, Flux, 0);
+            sourcenumStep(mesh, config, k4, Flux, 0, t);
             /** Concat results of R-K iterations */
             // #pragma omp parallel for
             for (int eq = 0; eq < u.size(); ++eq)

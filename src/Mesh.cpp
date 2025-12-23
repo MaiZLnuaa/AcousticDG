@@ -976,37 +976,6 @@ void Mesh::getElStiffVector(const size_t el, std::vector<std::vector<double>> &F
         }
     }
 }
-
-/**
- * Compute the zk porous H Vector.
- */
-
-void Mesh::getZKPorousHVector(const size_t el, int eq, std::vector<double> &u, double *elZKHVector, double porosity, double tortuosity, double resistivity, double gamma)
-{   
-    if (isPorous(m_elTags[el]) && eq != 0)
-    {
-        int jId;
-        for (int i = 0; i < m_elNumNodes; i++)
-        {
-            elZKHVector[i] = 0.0;
-            for (int j = 0; j < m_elNumNodes; j++)
-            {
-                jId = el * m_elNumNodes + j;
-                for (int g = 0; g < m_elNumIntPts; g++)
-                {
-                    elZKHVector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * porosity / tortuosity / config.rho0 * resistivity * u[jId];
-                }
-            }
-        }
-    }
-    else
-    {
-        for (int i = 0; i < m_elNumNodes; i++)
-        {
-            elZKHVector[i] = 0.0;
-        }
-    }
-}
         
 
 /**
@@ -2217,6 +2186,38 @@ void Mesh::getAuxiliaryEquationTerm2(const size_t eq, const size_t el, std::vect
                     }
                 }
             }
+        }
+    }
+}
+
+
+/**
+ * Compute the zk porous H Vector.
+ */
+
+void Mesh::getZKPorousHVector(const size_t el, int eq, std::vector<double> &u, double *elZKHVector, double porosity, double tortuosity, double resistivity, double gamma)
+{   
+    if (isPorous(m_elTags[el]) && eq != 0)
+    {
+        int jId;
+        for (int i = 0; i < m_elNumNodes; i++)
+        {
+            elZKHVector[i] = 0.0;
+            for (int j = 0; j < m_elNumNodes; j++)
+            {
+                jId = el * m_elNumNodes + j;
+                for (int g = 0; g < m_elNumIntPts; g++)
+                {
+                    elZKHVector[i] += elBasisFct(g, i) * elBasisFct(g, j) * m_elWeight[g] * elJacobianDet(el, g) * porosity / tortuosity / config.rho0 * resistivity * u[jId];
+                }
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; i < m_elNumNodes; i++)
+        {
+            elZKHVector[i] = 0.0;
         }
     }
 }
